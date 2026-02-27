@@ -122,7 +122,7 @@
         // --- GAME SOUND EFFECTS (Bat Hit, Bowl, Cheer) ---
         // यहाँ आफ्नो अडियो फाइलको लिङ्क हाल्नुहोला (उदाहरण: "audio/hit.mp3")
         const gameAudio = {
-            hit: new Audio(""),   
+            hit: new Audio("hit.mp3"),   
             bowl: new Audio(""),  
             cheer: new Audio("")  
         };
@@ -138,7 +138,7 @@
 
         // --- COMMENTARY AUDIO ---
         const COMM_LINES = {
-            '6': [{ text: "That is out of here! HUGE SIX!", audio: "" }, { text: "What a shot! It sails over the boundary.", audio: "" }],
+            '6': [{ text: "That is out of here! HUGE SIX!", audio: "Hugesix.mp3" }, { text: "What a shot! It sails over the boundary.", audio: "" }],
             '4': [{ text: "Pierces the gap beautifully! Four runs.", audio: "" }, { text: "Shot! One bounce and into the fence.", audio: "" }],
             'BOWLED': [{ text: "BOWLED HIM! What a delivery!", audio: "" }],
             'CAUGHT': [{ text: "In the air... and taken!", audio: "" }],
@@ -175,9 +175,9 @@
         const TOTAL_OVERS = 3, MAX_WICKETS = 5, BOUNDARY_RADIUS = 60;
         
         const ROSTERS = {
-            'Nepal': ['K. Bhurtel', 'A. Sheikh', 'K. Malla', 'D. Airee', 'S. Lamichhane', 'S. Kami'],
+            'Nepal': ['K. Bhurtel', 'Prakash', 'K. Malla', 'D. Airee', 'S. Lamichhane', 'S. Kami'],
             'India': ['R. Sharma', 'V. Kohli', 'S. Yadav', 'H. Pandya', 'J. Bumrah', 'M. Siraj'],
-            'Australia': ['D. Warner', 'T. Head', 'M. Marsh', 'G. Maxwell', 'M. Starc', 'P. Cummins'],
+            'Australia': ['D. Warner', 'T. Head', 'Ronnie', 'G. Maxwell', 'M. Starc', 'P. Cummins'],
             'England': ['J. Buttler', 'P. Salt', 'W. Jacks', 'M. Ali', 'J. Archer', 'A. Rashid'],
             'Pakistan': ['B. Azam', 'M. Rizwan', 'F. Zaman', 'I. Ahmed', 'S. Afridi', 'H. Rauf'],
             'South Africa': ['Q. de Kock', 'A. Markram', 'D. Miller', 'H. Klaasen', 'K. Rabada', 'A. Nortje'],
