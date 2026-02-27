@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE 3D CRICKET - FINAL PRO EDITION</title>
+    <title>ULTIMATE 3D CRICKET - EXTENDED EDITION</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; color: white; user-select: none; }
         
@@ -16,41 +16,57 @@
         
         #status { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 50px; font-weight: 900; color: #fff; text-shadow: 0 0 20px #ff0000, 0 0 10px #000; display: none; z-index: 200; text-align: center; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
-        /* Commentary & Tracker */
-        #commentary-box { position: absolute; bottom: 65px; width: 100%; text-align: center; color: #fff; font-size: 18px; font-weight: bold; font-style: italic; text-shadow: 2px 2px 4px #000; pointer-events: none; }
+        #equation-box { position: absolute; bottom: 95px; width: 100%; text-align: center; color: #ffeb3b; font-size: 15px; font-weight: bold; text-shadow: 1px 1px 3px #000; pointer-events: none; display: none; }
+        #commentary-box { position: absolute; bottom: 65px; width: 100%; text-align: center; color: #fff; font-size: 19px; font-weight: bold; font-style: italic; text-shadow: 2px 2px 4px #000; pointer-events: none; transition: opacity 0.3s; }
         
-        #ball-tracker { position: absolute; bottom: 15px; right: 15px; display: flex; gap: 6px; pointer-events: none; max-width: 90vw; justify-content: flex-end; align-items: center; flex-wrap: nowrap; overflow: hidden; }
+        #ball-tracker { position: absolute; bottom: 15px; right: 15px; display: flex; gap: 6px; pointer-events: none; max-width: 90vw; justify-content: flex-end; align-items: center; overflow: hidden; }
         .ball-bubble { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.8); border: 2px solid #555; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; color: white; }
-        .b-4 { background: #1976D2; border-color: #4fc3f7; }
-        .b-6 { background: #388E3C; border-color: #81c784; }
-        .b-w { background: #d32f2f; border-color: #e57373; }
-        .b-wd { background: #F57C00; border-color: #ffb74d; font-size: 11px; }
+        .b-4 { background: #1976D2; border-color: #4fc3f7; } .b-6 { background: #388E3C; border-color: #81c784; } .b-w { background: #d32f2f; border-color: #e57373; } .b-wd { background: #F57C00; border-color: #ffb74d; font-size: 11px; }
         .over-separator { flex-shrink: 0; width: 4px; height: 35px; background: #ffd700; border-radius: 2px; margin: 0 2px; box-shadow: 0 0 5px #ffd700; }
 
-        /* Overlays (Over Summary & Final Scoreboard) */
         .overlay-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 20, 10, 0.95); border: 2px solid #ffd700; padding: 25px; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.8); z-index: 300; text-align: center; width: 85%; max-width: 450px; display: none; }
         .overlay-title { font-size: 24px; color: #ffd700; font-weight: 900; margin-bottom: 15px; border-bottom: 1px solid #555; padding-bottom: 10px; }
         .overlay-text { font-size: 18px; color: #fff; margin: 8px 0; font-weight: bold; }
         .overlay-highlight { color: #4CAF50; font-size: 20px; }
-        
+
+        /* ----- MENUS ----- */
         #menu-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #0a2a0a, #000); display: flex; justify-content: center; align-items: center; z-index: 1000; overflow-y: auto; }
-        .glass-panel { background: rgba(15, 15, 15, 0.95); padding: 30px; border-radius: 15px; border: 2px solid #4CAF50; box-shadow: 0 0 50px rgba(76, 175, 80, 0.3); width: 90%; max-width: 600px; text-align: center; margin: auto; max-height: 90vh; overflow-y: auto; }
-        .menu-title { font-size: 28px; color: #ffd700; margin-bottom: 20px; font-weight: 900; }
-        .menu-btn { background: linear-gradient(45deg, #1e4a1e, #112a11); color: white; font-size: 18px; padding: 12px; margin: 10px 0; border: 1px solid #66cc66; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+        .glass-panel { background: rgba(15, 15, 15, 0.95); padding: 20px; border-radius: 15px; border: 2px solid #4CAF50; box-shadow: 0 0 50px rgba(76, 175, 80, 0.3); width: 95%; max-width: 700px; text-align: center; margin: auto; max-height: 95vh; overflow-y: auto; }
+        .menu-title { font-size: 28px; color: #ffd700; margin-bottom: 15px; font-weight: 900; text-transform: uppercase; }
+        .menu-btn { background: linear-gradient(45deg, #1e4a1e, #112a11); color: white; font-size: 16px; padding: 12px; margin: 8px 0; border: 1px solid #66cc66; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; box-sizing: border-box; }
         .menu-btn:hover { background: #4CAF50; color: black; transform: scale(1.02); }
+        .resume-btn { background: linear-gradient(45deg, #b8860b, #d4af37); color: black; border-color: #fff; }
+        .trn-btn { background: linear-gradient(45deg, #4b0082, #191970); border-color: #9370db; }
+        
         .team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 15px; }
         .team-btn { background: #222; color: white; padding: 10px 5px; border: 1px solid #555; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; }
         .team-btn:hover { background: #ffd700; color: black; }
-        .bracket-row { display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; margin: 8px 0; padding: 10px; border-radius: 5px; border-left: 4px solid #555; font-size: 14px; }
-        .my-match { border-left-color: #ffd700; background: #3a3a3a; }
-        .action-btn { border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-left: 5px; font-size: 12px; }
-        .btn-play { background: gold; color: black; }
-        .btn-watch { background: #2196F3; color: white; }
+
+        /* WORLD CUP / TOURNAMENT UI */
+        .wc-layout { display: flex; flex-direction: column; gap: 15px; }
+        @media (min-width: 600px) { .wc-layout { flex-direction: row; } .wc-panel { flex: 1; } }
+        .wc-panel { background: #1a1a1a; border-radius: 10px; border: 1px solid #444; padding: 10px; }
+        .wc-panel h3 { margin: 0 0 10px 0; color: #4CAF50; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        
+        .match-row { display: flex; justify-content: space-between; align-items: center; background: #2a2a2a; margin: 5px 0; padding: 8px; border-radius: 5px; font-size: 13px; border-left: 3px solid #555; }
+        .match-row.my-match { border-left-color: #ffd700; background: #3a3a3a; }
+        .action-btns { display: flex; gap: 4px; }
+        .action-btn { border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 11px; }
+        .btn-play { background: gold; color: black; } 
+        .btn-watch { background: #2196F3; color: white; } 
         .btn-sim { background: #757575; color: white; }
+
+        /* STANDINGS TABLE */
+        .tab-bar { display: flex; justify-content: center; gap: 5px; margin-bottom: 10px; }
+        .tab-btn { background: #333; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .tab-btn.active { background: #4CAF50; color: black; border-color: #4CAF50; }
+        .pts-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+        .pts-table th { background: #222; color: #ffd700; padding: 6px 2px; }
+        .pts-table td { padding: 6px 2px; border-bottom: 1px solid #333; }
+        .pts-table tr:nth-child(1), .pts-table tr:nth-child(2) { background: rgba(76, 175, 80, 0.1); } 
+
         @keyframes popIn { from { transform: translate(-50%, -50%) scale(0); } to { transform: translate(-50%, -50%) scale(1); } }
         .hidden { display: none !important; }
-
-        @media (max-width: 600px) { .team-grid { grid-template-columns: 1fr 1fr; } .score-panel { font-size: 16px; } .player-panel { font-size: 12px; } }
     </style>
 </head>
 <body>
@@ -62,7 +78,8 @@
         <div id="target-info">1st Innings</div>
     </div>
     <div id="status"></div>
-    <div id="commentary-box">Welcome to the match!</div>
+    <div id="equation-box"></div>
+    <div id="commentary-box"></div>
     <div id="ball-tracker"></div>
     
     <div id="over-summary" class="overlay-box">
@@ -88,65 +105,126 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import gsap from 'gsap';
 
-        // --- AUDIO ---
-        const sounds = { bowl: null, hit: null, cheer: null };
-        function playSound(type) { if(sounds[type]) { sounds[type].currentTime = 0; sounds[type].play().catch(e=>console.log("Audio not ready")); } }
+        // --- SCREEN WAKE LOCK (Prevents Dimming) ---
+        let wakeLock = null;
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } 
+            catch (err) { console.log("Wake Lock error:", err); }
+        }
+        document.addEventListener('visibilitychange', async () => { if (wakeLock !== null && document.visibilityState === 'visible') requestWakeLock(); });
+        requestWakeLock(); // Request initially
 
-        // --- COMMENTARY DICTIONARY (FIXED) ---
+        const sounds = { bowl: null, hit: null, cheer: null };
+        function playSound(type) { if(sounds[type]) { sounds[type].currentTime = 0; sounds[type].play().catch(e=>{}); } }
+
+        // --- ADVANCED AUDIO COMMENTARY SYSTEM ---
+        // Here you can easily add your actual audio file paths inside the "audio" property.
         const COMM_LINES = {
-            '6': ["That is out of here! HUGE SIX!", "What a shot! It sails over the boundary.", "He smashed that one into the crowd!"],
-            '4': ["Pierces the gap beautifully! Four runs.", "Shot! One bounce and into the fence.", "Great timing, pure class for four."],
-            'BOWLED': ["BOWLED HIM! What a delivery!", "Knocks him over! Stumps flying.", "Through the gate! He is bowled!"],
-            'CAUGHT': ["CAUGHT! That's a massive wicket.", "In the air... and taken!", "Fielder makes no mistake. Out!"],
-            'RO': ["RUN OUT! A direct hit!", "Terrible mix-up, he is gone!", "Brilliant fielding, run out!"],
-            '0': ["Good delivery, dot ball.", "Played straight to the fielder.", "No run, firmly defended."],
-            '1': ["Just a single to rotate the strike.", "Quick running, they get one.", "Pushes it into the gap for a single."],
-            '2': ["Excellent running between the wickets, two runs.", "Pushed in the deep, they come back for a couple."],
-            'WD': ["Wide ball. Extra run for the team.", "Bowler misses his line completely, Wide."]
+            '6': [
+                { text: "That is out of here! HUGE SIX!", audio: "" },
+                { text: "What a shot! It sails over the boundary.", audio: "" },
+                { text: "He smashed that one into the crowd!", audio: "" }
+            ],
+            '4': [
+                { text: "Pierces the gap beautifully! Four runs.", audio: "" },
+                { text: "Shot! One bounce and into the fence.", audio: "" }
+            ],
+            'BOWLED': [
+                { text: "BOWLED HIM! What a delivery!", audio: "" }
+            ],
+            'CAUGHT': [
+                { text: "In the air... and taken!", audio: "" }
+            ],
+            'RO': [
+                { text: "RUN OUT! A direct hit!", audio: "" }
+            ],
+            '0': [
+                { text: "Good delivery, dot ball.", audio: "" }
+            ],
+            '1': [
+                { text: "Just a single to rotate the strike.", audio: "" }
+            ],
+            '2': [
+                { text: "Excellent running between the wickets, two runs.", audio: "" }
+            ],
+            'WD': [
+                { text: "Wide ball. Extra run for the team.", audio: "" }
+            ]
         };
-        function setCommentary(type) {
-            const lines = COMM_LINES[type] || ["Good cricket all around."];
-            document.getElementById('commentary-box').innerText = lines[Math.floor(Math.random() * lines.length)];
+
+        let currentAudioObj = null;
+        let commTimeout = null;
+
+        function playCommentaryAudio(audioSrc) {
+            if (currentAudioObj) { currentAudioObj.pause(); currentAudioObj.currentTime = 0; }
+            if (audioSrc && audioSrc !== "") {
+                currentAudioObj = new Audio(audioSrc);
+                currentAudioObj.play().catch(e => console.log("Audio not linked or blocked"));
+            }
         }
 
-        // --- CONFIG (16 TEAMS & 6 PLAYERS) ---
+        function setCommentary(type) { 
+            const lines = COMM_LINES[type] || [{ text: "Good cricket.", audio: "" }];
+            const selectedLine = lines[Math.floor(Math.random() * lines.length)];
+            
+            const box = document.getElementById('commentary-box');
+            box.innerText = selectedLine.text;
+            
+            // Play linked audio
+            playCommentaryAudio(selectedLine.audio);
+
+            // Hide text after 3.5 seconds
+            clearTimeout(commTimeout);
+            commTimeout = setTimeout(() => { box.innerText = ""; }, 3500);
+        }
+
         const TEAMS = ['Nepal', 'India', 'Australia', 'England', 'Pakistan', 'South Africa', 'West Indies', 'Sri Lanka', 'New Zealand', 'Bangladesh', 'Afghanistan', 'Zimbabwe', 'Ireland', 'Netherlands', 'Scotland', 'UAE'];
         const TEAM_COLORS = { 'Nepal': 0x003893, 'India': 0x1F77B4, 'Australia': 0xFFD700, 'England': 0xCE1124, 'Pakistan': 0x1D5E3F, 'South Africa': 0xF1C40F, 'West Indies': 0x800080, 'Sri Lanka': 0x000080, 'New Zealand': 0x111111, 'Bangladesh': 0x006A4E, 'Afghanistan': 0x0000FF, 'Zimbabwe': 0xD40000, 'Ireland': 0x009A44, 'Netherlands': 0xFF6600, 'Scotland': 0x001A4D, 'UAE': 0x555555 };
         const TOTAL_OVERS = 3, MAX_WICKETS = 5, BOUNDARY_RADIUS = 60;
-
-        // --- FULL ROSTERS ---
+        
         const ROSTERS = {
             'Nepal': ['K. Bhurtel', 'A. Sheikh', 'K. Malla', 'D. Airee', 'S. Lamichhane', 'S. Kami'],
             'India': ['R. Sharma', 'V. Kohli', 'S. Yadav', 'H. Pandya', 'J. Bumrah', 'M. Siraj'],
             'Australia': ['D. Warner', 'T. Head', 'M. Marsh', 'G. Maxwell', 'M. Starc', 'P. Cummins'],
-            'England': ['J. Buttler', 'P. Salt', 'W. Jacks', 'L. Livingstone', 'J. Archer', 'A. Rashid'],
+            'England': ['J. Buttler', 'P. Salt', 'W. Jacks', 'M. Ali', 'J. Archer', 'A. Rashid'],
             'Pakistan': ['B. Azam', 'M. Rizwan', 'F. Zaman', 'I. Ahmed', 'S. Afridi', 'H. Rauf'],
-            'South Africa': ['Q. de Kock', 'A. Markram', 'H. Klaasen', 'D. Miller', 'K. Rabada', 'A. Nortje'],
+            'South Africa': ['Q. de Kock', 'A. Markram', 'D. Miller', 'H. Klaasen', 'K. Rabada', 'A. Nortje'],
             'West Indies': ['B. King', 'N. Pooran', 'R. Powell', 'A. Russell', 'A. Hosein', 'A. Joseph'],
-            'Sri Lanka': ['P. Nissanka', 'K. Mendis', 'C. Asalanka', 'W. Hasaranga', 'M. Theekshana', 'M. Pathirana'],
-            'New Zealand': ['F. Allen', 'D. Conway', 'K. Williamson', 'D. Mitchell', 'M. Santner', 'T. Boult'],
+            'Sri Lanka': ['P. Nissanka', 'K. Mendis', 'C. Asalanka', 'D. Shanaka', 'W. Hasaranga', 'M. Pathirana'],
+            'New Zealand': ['F. Allen', 'D. Conway', 'K. Williamson', 'D. Mitchell', 'T. Boult', 'T. Southee'],
             'Bangladesh': ['L. Das', 'N. Hossain', 'S. Al Hasan', 'T. Hridoy', 'M. Rahman', 'T. Ahmed'],
             'Afghanistan': ['R. Gurbaz', 'I. Zadran', 'A. Omarzai', 'M. Nabi', 'R. Khan', 'F. Farooqi'],
             'Zimbabwe': ['C. Ervine', 'S. Williams', 'S. Raza', 'R. Burl', 'B. Muzarabani', 'R. Ngarava'],
-            'Ireland': ['P. Stirling', 'A. Balbirnie', 'L. Tucker', 'H. Tector', 'M. Adair', 'J. Little'],
-            'Netherlands': ['M. O\'Dowd', 'V. Singh', 'S. Engelbrecht', 'B. de Leede', 'L. van Beek', 'P. van Meekeren'],
+            'Ireland': ['P. Stirling', 'A. Balbirnie', 'H. Tector', 'L. Tucker', 'M. Adair', 'J. Little'],
+            'Netherlands': ['M. O\'Dowd', 'C. Ackermann', 'S. Engelbrecht', 'B. de Leede', 'L. van Beek', 'P. van Meekeren'],
             'Scotland': ['G. Munsey', 'R. Berrington', 'B. McMullen', 'M. Cross', 'M. Watt', 'B. Wheal'],
-            'UAE': ['M. Waseem', 'V. Aravind', 'B. Hameed', 'A. Khan', 'J. Siddique', 'Z. Khan']
+            'UAE': ['M. Waseem', 'A. Sharma', 'V. Aravind', 'B. Hameed', 'A. Khan', 'J. Siddique']
         };
 
-        // --- GLOBALS ---
+        // --- GAME STATE ---
         let scene, camera, renderer, controls;
         let bowler, strikerMesh, nonStrikerMesh, keeper, ball, ballShadow;
         let stumpsBowling, stumpsBatting, fielders = [], allPlayers = [];
         
-        let gameMode = 'QUICK', playerTeam = 'Nepal', opponentTeam = 'India', battingTeamStr = '', bowlingTeamStr = '';
+        let gameMode = 'QUICK'; 
+        let playerTeam = 'Nepal', opponentTeam = 'India', battingTeamStr = '', bowlingTeamStr = '';
         let score = 0, wickets = 0, balls = 0, overs = 0, target = 0, innings = 1, firstInningsScore = 0;
         let matchBallLog = [], isBallInPlay = false, camState = 'STATIC', deliveryTimer;
-        let tournamentRound = 0, tournamentBracket = [], isWatchMode = false, currentTournMatchIdx = 0;
-
+        
         let batterStats = [], strikerIdx = 0, nonStrikerIdx = 1, nextBatterIdx = 2, currentBowlerName = "";
+        let firstInningsOversFaced = 0;
 
-        // --- INIT THREE.JS ---
+        let wc = {
+            active: false, phase: 'GROUP', playerTeam: '',
+            groups: { A:[], B:[], C:[], D:[] }, super8: { G1:[], G2:[] },
+            points: {}, matches: [], currentMatchIdx: 0, currentTab: 'A',
+            isKnockoutOnly: false
+        };
+
+        function saveWC() { localStorage.setItem('wcSaveData', JSON.stringify(wc)); }
+        function loadWC() { let d = localStorage.getItem('wcSaveData'); if(d) { wc = JSON.parse(d); return true; } return false; }
+        function clearWC() { localStorage.removeItem('wcSaveData'); }
+
         function initScene() {
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f18); scene.fog = new THREE.Fog(0x0a0f18, 120, 600);
             camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -161,17 +239,9 @@
             const ground = new THREE.Mesh(new THREE.CircleGeometry(90, 64), new THREE.MeshStandardMaterial({ color: 0x245e24, roughness: 0.9 })); ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
             const pitch = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.05, 22), new THREE.MeshStandardMaterial({ color: 0xc4a473 })); pitch.receiveShadow = true; pitch.position.y = 0.03; scene.add(pitch);
             
-            // --- CREASE & WIDE LINES FIX ---
             const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
             const creaseBat = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.06), lineMat); creaseBat.rotation.x = -Math.PI/2; creaseBat.position.set(0, 0.06, 8.8); scene.add(creaseBat);
             const creaseBowl = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.06), lineMat); creaseBowl.rotation.x = -Math.PI/2; creaseBowl.position.set(0, 0.06, -8.8); scene.add(creaseBowl);
-            
-            // Adding Wide Lines
-            const wideLineGeo = new THREE.PlaneGeometry(0.06, 2.4);
-            const wideBL = new THREE.Mesh(wideLineGeo, lineMat); wideBL.rotation.x = -Math.PI/2; wideBL.position.set(-1.1, 0.06, 8.8); scene.add(wideBL);
-            const wideBR = new THREE.Mesh(wideLineGeo, lineMat); wideBR.rotation.x = -Math.PI/2; wideBR.position.set(1.1, 0.06, 8.8); scene.add(wideBR);
-            const wideBoL = new THREE.Mesh(wideLineGeo, lineMat); wideBoL.rotation.x = -Math.PI/2; wideBoL.position.set(-1.1, 0.06, -8.8); scene.add(wideBoL);
-            const wideBoR = new THREE.Mesh(wideLineGeo, lineMat); wideBoR.rotation.x = -Math.PI/2; wideBoR.position.set(1.1, 0.06, -8.8); scene.add(wideBoR);
 
             const rope = new THREE.Mesh(new THREE.TorusGeometry(BOUNDARY_RADIUS, 0.3, 8, 100), new THREE.MeshStandardMaterial({ color: 0xffffff })); rope.rotation.x = -Math.PI/2; scene.add(rope);
 
@@ -214,19 +284,13 @@
             const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.9), new THREE.MeshStandardMaterial({color: 0x111})); legR.position.set(0.15, 0.45, 0);
             group.add(legL); group.add(legR); group.userData.legs = [legL, legR];
             const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.25), kitMat); torso.position.y = 1.25; group.add(torso);
-            
             const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), skinMat); head.position.y = 1.78; 
             const eyeMat = new THREE.MeshBasicMaterial({color: 0x000000});
             const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.035), eyeMat); eyeR.position.set(0.08, 0.05, 0.22); head.add(eyeR);
             const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.035), eyeMat); eyeL.position.set(-0.08, 0.05, 0.22); head.add(eyeL);
-
-            const capGroup = new THREE.Group();
-            const capBase = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 16, 0, Math.PI*2, 0, Math.PI/2), kitMat);
-            const capBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 16, 1, false, 0, Math.PI), kitMat);
-            capBrim.position.set(0, -0.05, 0.15); capBrim.scale.set(1, 1, 1.2);
-            capGroup.add(capBase); capGroup.add(capBrim); capGroup.position.y = 0.05; head.add(capGroup); 
-            if (role === 'BAT') head.rotation.y = 1.5; group.add(head);
-
+            const capGroup = new THREE.Group(); const capBase = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 16, 0, Math.PI*2, 0, Math.PI/2), kitMat);
+            const capBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 16, 1, false, 0, Math.PI), kitMat); capBrim.position.set(0, -0.05, 0.15); capBrim.scale.set(1, 1, 1.2);
+            capGroup.add(capBase); capGroup.add(capBrim); capGroup.position.y = 0.05; head.add(capGroup); if (role === 'BAT') head.rotation.y = 1.5; group.add(head);
             const shoulders = new THREE.Group(); shoulders.position.y = 1.5; group.add(shoulders); group.userData.shoulders = shoulders;
             const armL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.65, 0.12), kitMat); armL.position.set(-0.35, -0.3, 0);
             const armR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.65, 0.12), kitMat); armR.position.set(0.35, -0.3, 0);
@@ -234,33 +298,30 @@
 
             group.userData.isMoving = false;
             if (role === 'BAT') {
-                const batGroup = new THREE.Group();
-                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xccaa88 })); blade.position.y = -0.4;
+                const batGroup = new THREE.Group(); const blade = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xccaa88 })); blade.position.y = -0.4;
                 const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3), new THREE.MeshStandardMaterial({ color: 0x000000 })); handle.position.y = 0.15;
                 batGroup.add(blade); batGroup.add(handle); shoulders.add(batGroup);
                 group.userData.isLeft = Math.random() > 0.5;
                 if(group.userData.isLeft) { batGroup.position.set(-0.2, -0.4, 0.4); batGroup.rotation.x = -0.3; shoulders.rotation.y = 1.5; head.rotation.y = -1.5; } 
                 else { batGroup.position.set(0.2, -0.4, 0.4); batGroup.rotation.x = -0.3; shoulders.rotation.y = -1.5; head.rotation.y = 1.5; }
                 group.userData.bat = batGroup;
-            } else if (role === 'BOWL') { shoulders.rotation.x = 0; group.userData.runStart = -25; } 
-            else if (role === 'KEEP') { shoulders.rotation.x = -0.5; group.position.y -= 0.15; }
-
+            } else if (role === 'BOWL') { shoulders.rotation.x = 0; group.userData.runStart = -25; } else if (role === 'KEEP') { shoulders.rotation.x = -0.5; group.position.y -= 0.15; }
             allPlayers.push(group); return group;
         }
 
         function initStats() {
             batterStats = ROSTERS[battingTeamStr].map(name => ({ name, runs: 0, balls: 0, out: false }));
             strikerIdx = 0; nonStrikerIdx = 1; nextBatterIdx = 2;
-            currentBowlerName = ROSTERS[bowlingTeamStr][5];
+            currentBowlerName = ROSTERS[bowlingTeamStr][5]; 
         }
 
         function startGame() {
-            clearTimeout(deliveryTimer); score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; document.getElementById('commentary-box').innerText = "Match begins! Let's play.";
-            if (innings === 1) { target = 0; firstInningsScore = 0; }
+            clearTimeout(deliveryTimer); score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; 
+            document.getElementById('commentary-box').innerText = "Match begins! Let's play.";
+            if (innings === 1) { target = 0; firstInningsScore = 0; firstInningsOversFaced = 0; }
             isBallInPlay = false; initStats();
             
-            allPlayers.forEach(p => { gsap.killTweensOf(p.position); gsap.killTweensOf(p.userData.shoulders.rotation); scene.remove(p); });
-            allPlayers = []; fielders = [];
+            allPlayers.forEach(p => { gsap.killTweensOf(p.position); gsap.killTweensOf(p.userData.shoulders.rotation); scene.remove(p); }); allPlayers = []; fielders = [];
 
             bowler = createPlayer(bowlingTeamStr, 'BOWL'); scene.add(bowler);
             strikerMesh = createPlayer(battingTeamStr, 'BAT'); strikerMesh.position.set(0, 0, 10); scene.add(strikerMesh);
@@ -276,8 +337,7 @@
 
         function deliverBall() {
             if(isBallInPlay || wickets >= MAX_WICKETS || overs >= TOTAL_OVERS) return;
-            isBallInPlay = true; camState = 'RUNUP';
-            bowler.position.z = bowler.userData.runStart; bowler.position.x = 0.6; 
+            isBallInPlay = true; camState = 'RUNUP'; bowler.position.z = bowler.userData.runStart; bowler.position.x = 0.6; 
             const tl = gsap.timeline({ onComplete: releaseBall });
             tl.to(bowler.position, { z: -10, duration: 1.2, ease: 'power1.in', onUpdate: () => bowler.userData.isMoving = true });
             tl.to(bowler.position, { z: -8.5, y: 1, duration: 0.15, onStart: () => { bowler.userData.isMoving = false; bowler.userData.shoulders.rotation.x = 3.14; } });
@@ -285,9 +345,7 @@
         }
 
         function releaseBall() {
-            camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0;
-            ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playSound('BOWL');
-            
+            camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playSound('BOWL');
             let targetX = (Math.random()-0.5)*1.5; let isWide = false;
             if (Math.random() < 0.10) { isWide = true; targetX = strikerMesh.userData.isLeft ? (Math.random()>0.5 ? 2.5 : -2.5) : (Math.random()>0.5 ? 2.5 : -2.5); }
             gsap.to(ball.position, { z: 10, x: targetX, duration: 0.5, ease: 'linear' });
@@ -305,13 +363,11 @@
                 matchBallLog.push('WD'); setCommentary('WD'); updateScoreboard(); setTimeout(() => finishDelivery(false, 0, false), 1500); return;
             }
 
-            const bat = strikerMesh.userData.bat; gsap.to(bat.rotation, { x: -2.5, duration: 0.1, yoyo: true, repeat: 1 });
-            batterStats[strikerIdx].balls++;
+            const bat = strikerMesh.userData.bat; gsap.to(bat.rotation, { x: -2.5, duration: 0.1, yoyo: true, repeat: 1 }); batterStats[strikerIdx].balls++;
 
             const rand = Math.random(); let runs = 0; let shotType = '';
             if(rand < 0.05) shotType = 'BOWLED'; else if(rand < 0.15) shotType = 'CAUGHT'; else if(rand < 0.25) { shotType = 'DOT'; runs = 0; } 
             else if(rand < 0.50) { shotType = 'RUNS'; runs = Math.random()>0.5?1:2; } else if(rand < 0.75) { shotType = 'FOUR'; runs = 4; } else { shotType = 'SIX'; runs = 6; } 
-
             const angle = Math.random() * Math.PI * 2; 
 
             if(shotType === 'BOWLED') {
@@ -329,13 +385,13 @@
                 playSound('hit'); setCommentary('0'); gsap.to(ball.position, { z: 15, x: bx + Math.random(), y:0, duration: 0.5 }); matchBallLog.push('0'); updateScoreboard(); setTimeout(() => finishDelivery(true, 0, false), 1500);
             }
             else if (shotType === 'FOUR') {
-                playSound('hit'); const destX = Math.sin(angle) * 75; const destZ = Math.cos(angle) * 75 + 10;
+                playSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+8); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+8) + 10;
                 gsap.to(ball.position, { x: destX, z: destZ, y: 0, duration: 1.8, ease: 'power1.out', onComplete: () => {
                     playSound('cheer'); showStatus("FOUR!"); setCommentary('4'); score += 4; matchBallLog.push('4'); updateScoreboard(); setTimeout(() => finishDelivery(true, 4, false), 2500);
                 }});
             }
             else if (shotType === 'SIX') {
-                playSound('hit'); const destX = Math.sin(angle) * 85; const destZ = Math.cos(angle) * 85 + 10;
+                playSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+20); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+20) + 10;
                 gsap.to(ball.position, { x: destX, z: destZ, duration: 2, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 25; }, onComplete: () => {
                     playSound('cheer'); showStatus("SIX!"); setCommentary('6'); score += 6; matchBallLog.push('6'); updateScoreboard(); setTimeout(() => finishDelivery(true, 6, false), 3000);
                 }}); gsap.to(ball.position, { y: 2, duration: 0.4, delay: 2, yoyo: true, repeat: 1 }); 
@@ -344,16 +400,13 @@
                 playSound('hit'); const destX = Math.sin(angle) * (runs===2?45:25); const destZ = Math.cos(angle) * (runs===2?45:25) + 10;
                 const timeToChase = runs === 2 ? 3.0 : 1.8; 
                 gsap.to(ball.position, { x: destX, z: destZ, y: 0, duration: timeToChase, ease: 'power1.out' });
-
                 strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true;
                 const runDur = timeToChase / (runs===2?2:1) - 0.1; 
                 gsap.to(strikerMesh.position, { z: -10, duration: runDur, yoyo: runs===2, repeat: runs===2?1:0, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
                 gsap.to(nonStrikerMesh.position, { z: 10, duration: runDur, yoyo: runs===2, repeat: runs===2?1:0, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
-
                 let closestF = fielders[0], minDist = 999;
                 fielders.forEach(f => { const d = Math.hypot(f.position.x - destX, f.position.z - destZ); if(d < minDist) { minDist = d; closestF = f; } });
                 closestF.lookAt(destX, 0, destZ);
-
                 gsap.to(closestF.position, { x: destX, z: destZ, duration: timeToChase, onUpdate: ()=>closestF.userData.isMoving=true, onComplete: () => {
                     closestF.userData.isMoving = false; closestF.lookAt(0, 0, 10);
                     if(Math.random() < 0.10) {
@@ -367,106 +420,115 @@
             }
         }
 
-        // --- END OF OVER & MATCH LOGIC ---
         function showOverSummary() {
             const ovPanel = document.getElementById('over-summary');
-            document.getElementById('os-over').innerText = overs;
-            document.getElementById('os-score').innerText = `${score}/${wickets}`;
-            
-            const sData = batterStats[strikerIdx];
-            const sr = sData.balls > 0 ? ((sData.runs/sData.balls)*100).toFixed(1) : "0.0";
+            document.getElementById('os-over').innerText = overs; document.getElementById('os-score').innerText = `${score}/${wickets}`;
+            const sData = batterStats[strikerIdx]; const sr = sData.balls > 0 ? ((sData.runs/sData.balls)*100).toFixed(1) : "0.0";
             document.getElementById('os-striker').innerHTML = `Striker: ${sData.name} - ${sData.runs} (${sData.balls}) | SR: ${sr}`;
-            
             if (innings === 1) {
-                const rr = (score / overs).toFixed(2);
-                document.getElementById('os-rate').innerText = `Current Run Rate: ${rr}`;
-                document.getElementById('os-req').innerText = "";
+                const rr = (score / overs).toFixed(2); document.getElementById('os-rate').innerText = `Current Run Rate: ${rr}`; document.getElementById('os-req').innerText = "";
             } else {
-                const remBalls = (TOTAL_OVERS * 6) - (overs * 6 + balls);
-                const reqRuns = target - score;
+                const remBalls = (TOTAL_OVERS * 6) - (overs * 6 + balls); const reqRuns = target - score;
                 const rrr = remBalls > 0 ? ((reqRuns / remBalls) * 6).toFixed(2) : "0.0";
-                document.getElementById('os-rate').innerText = `Req. Run Rate: ${rrr}`;
-                document.getElementById('os-req').innerText = `Need ${reqRuns} runs from ${remBalls} balls`;
+                document.getElementById('os-rate').innerText = `Req. Run Rate: ${rrr}`; document.getElementById('os-req').innerText = `Need ${reqRuns} runs from ${remBalls} balls`;
             }
-            
-            ovPanel.style.display = 'block';
-            setTimeout(() => { ovPanel.style.display = 'none'; isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1000); }, 4000);
+            ovPanel.style.display = 'block'; setTimeout(() => { ovPanel.style.display = 'none'; isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1000); }, 4000);
         }
+
+        function getOversFloat(ovr, bls) { return ovr + (bls / 6); }
 
         function finishDelivery(isLegalBall, runScored, isWicket) {
             if (isLegalBall) {
                 batterStats[strikerIdx].runs += runScored; balls++; 
-                if(balls === 6) { 
-                    balls = 0; overs++; 
-                    matchBallLog.push('OVER_END');
-                    currentBowlerName = ROSTERS[bowlingTeamStr][Math.floor(Math.random()*2 + 4)]; 
-                }
+                if(balls === 6) { balls = 0; overs++; matchBallLog.push('OVER_END'); currentBowlerName = ROSTERS[bowlingTeamStr][Math.floor(Math.random()*2 + 4)]; }
             }
-
             if (isWicket) { batterStats[strikerIdx].out = true; if(wickets < MAX_WICKETS) { strikerIdx = nextBatterIdx; nextBatterIdx++; } } 
             else if (runScored % 2 !== 0) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
             if (isLegalBall && balls === 0 && !isWicket) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
-
+            
             updateScoreboard();
             
             let isMatchOver = false, isInningsOver = false;
             if(innings === 2 && score >= target) { isMatchOver = true; endMatch(battingTeamStr); }
-            else if(wickets >= MAX_WICKETS || overs >= TOTAL_OVERS) {
-                if(innings === 1) isInningsOver = true; else isMatchOver = true;
-            }
+            else if(wickets >= MAX_WICKETS || overs >= TOTAL_OVERS) { if(innings === 1) isInningsOver = true; else isMatchOver = true; }
 
-            if (isMatchOver) {
-                if(innings === 2 && score < target) endMatch(bowlingTeamStr);
-                else if (innings === 2 && score === target - 1) endMatch("DRAW"); 
-                return;
-            }
-
+            if (isMatchOver) { if(innings === 2 && score < target) endMatch(bowlingTeamStr); else if (innings === 2 && score === target - 1) endMatch("DRAW"); return; }
             if (isInningsOver) {
-                firstInningsScore = score; target = score + 1; score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; innings = 2;
+                firstInningsScore = score; firstInningsOversFaced = getOversFloat(overs, balls); target = score + 1; 
+                score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; innings = 2;
                 let tempTeam = battingTeamStr; battingTeamStr = bowlingTeamStr; bowlingTeamStr = tempTeam;
-                showStatus("INNINGS BREAK"); setTimeout(startGame, 4000);
-                return;
+                showStatus("INNINGS BREAK"); setTimeout(startGame, 4000); return;
             }
 
-            ball.visible = false; ballShadow.visible = false;
-            stumpsBatting.children[1].position.set(0, 0.47, 0); stumpsBatting.children[1].rotation.set(0, 0, 0);
-            strikerMesh.position.set(0, 0, 10); strikerMesh.rotation.y = 0;
-            nonStrikerMesh.position.set(1.5, 0, -10); nonStrikerMesh.rotation.y = Math.PI;
-            resetCameraStatic();
-            fielders.forEach(f => { if(Math.abs(f.position.x) < 20 && Math.abs(f.position.z) < 20) { f.position.set(Math.cos(Math.random()*6)*50, 0, Math.sin(Math.random()*6)*50); f.lookAt(0,0,0); } });
+            ball.visible = false; ballShadow.visible = false; stumpsBatting.children[1].position.set(0, 0.47, 0); stumpsBatting.children[1].rotation.set(0, 0, 0);
+            strikerMesh.position.set(0, 0, 10); strikerMesh.rotation.y = 0; nonStrikerMesh.position.set(1.5, 0, -10); nonStrikerMesh.rotation.y = Math.PI;
+            resetCameraStatic(); fielders.forEach(f => { if(Math.abs(f.position.x) < 20 && Math.abs(f.position.z) < 20) { f.position.set(Math.cos(Math.random()*6)*50, 0, Math.sin(Math.random()*6)*50); f.lookAt(0,0,0); } });
             
-            if (balls === 0 && overs > 0) { showOverSummary(); } 
-            else { isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); }
+            if (balls === 0 && overs > 0) { showOverSummary(); } else { isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); }
+        }
+
+        // --- WORLD CUP / TOURNAMENT LOGIC & NRR FIX ---
+        function calculateNRR(rs, of, rc, ob) { 
+            let rFor = of > 0 ? (rs/of) : 0; let rAg = ob > 0 ? (rc/ob) : 0; 
+            return (rFor - rAg); 
+        }
+
+        function processWCResult(winner, t1, t2) {
+            let p1 = wc.points[t1], p2 = wc.points[t2];
+            
+            if (winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; }
+            else if (winner === t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; }
+            else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; }
+
+            if(gameMode === 'WC' || gameMode === 'TOURNAMENT') {
+                let t1Runs, t1Overs, t2Runs, t2Overs;
+                
+                // In game, battingTeamStr is chasing (Innings 2), bowlingTeamStr defended (Innings 1)
+                if (t1 === battingTeamStr) { 
+                    t1Runs = score; 
+                    t1Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls);
+                    t2Runs = firstInningsScore;
+                    t2Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced; 
+                } else { 
+                    t1Runs = firstInningsScore;
+                    t1Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced;
+                    t2Runs = score; 
+                    t2Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls);
+                }
+                
+                if(p1 && p2) {
+                    p1.RS += t1Runs; p1.OF += t1Overs; p1.RC += t2Runs; p1.OB += t2Overs;
+                    p2.RS += t2Runs; p2.OF += t2Overs; p2.RC += t1Runs; p2.OB += t1Overs;
+                    p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB);
+                    p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB);
+                }
+            }
+            saveWC();
         }
 
         function endMatch(winner) {
             isBallInPlay = true; let finalWinner = winner; let marginStr = "";
-            
-            if (winner === "DRAW") { 
-                finalWinner = Math.random() > 0.5 ? battingTeamStr : bowlingTeamStr; 
-                marginStr = `Match Tied! ${finalWinner} wins Super Over!`; 
-            } else { 
-                if (winner === battingTeamStr) { 
-                    marginStr = `${finalWinner} won by ${MAX_WICKETS - wickets} wickets`;
-                } else { 
-                    marginStr = `${finalWinner} won by ${target - 1 - score} runs`;
-                }
-            }
+            if (winner === "DRAW") { finalWinner = Math.random() > 0.5 ? battingTeamStr : bowlingTeamStr; marginStr = `Match Tied! ${finalWinner} wins Super Over!`; } 
+            else { if (winner === battingTeamStr) marginStr = `${finalWinner} won by ${MAX_WICKETS - wickets} wickets`; else marginStr = `${finalWinner} won by ${target - 1 - score} runs`; }
             
             showStatus(`${finalWinner} WINS!`); celebrateWin(finalWinner); 
 
             setTimeout(() => {
                 const msPanel = document.getElementById('match-scoreboard');
-                document.getElementById('ms-inn1').innerText = `${bowlingTeamStr}: ${firstInningsScore} (Target: ${firstInningsScore+1})`;
+                document.getElementById('ms-inn1').innerText = `${bowlingTeamStr}: ${firstInningsScore}`;
                 document.getElementById('ms-inn2').innerText = `${battingTeamStr}: ${score}/${wickets}`;
-                document.getElementById('ms-result').innerText = marginStr;
-                msPanel.style.display = 'block';
+                document.getElementById('ms-result').innerText = marginStr; msPanel.style.display = 'block';
 
                 setTimeout(() => {
                     msPanel.style.display = 'none';
-                    if(gameMode === 'TOURNAMENT') { tournamentBracket[currentTournMatchIdx].winner = finalWinner; renderTournamentMenu(); } 
-                    else { renderMainMenu(); }
-                }, 6000);
+                    if(gameMode === 'WC' || gameMode === 'TOURNAMENT') {
+                        wc.matches[wc.currentMatchIdx].winner = finalWinner;
+                        wc.matches[wc.currentMatchIdx].res = marginStr;
+                        wc.matches[wc.currentMatchIdx].status = 'DONE';
+                        processWCResult(finalWinner, wc.matches[wc.currentMatchIdx].t1, wc.matches[wc.currentMatchIdx].t2);
+                        renderWCHub();
+                    } else { renderMainMenu(); }
+                }, 5000);
             }, 3000);
         }
 
@@ -474,25 +536,41 @@
             document.getElementById('scorecard').innerText = `${battingTeamStr}: ${score}/${wickets} (${overs}.${balls})`;
             document.getElementById('target-info').innerText = innings === 2 ? `TARGET: ${target}` : "1st INNINGS";
             
+            // Required Runs Equation logic
+            const eqBox = document.getElementById('equation-box');
+            if (innings === 2 && target > 0 && overs < TOTAL_OVERS && wickets < MAX_WICKETS && score < target) {
+                let ballsLeft = (TOTAL_OVERS * 6) - (overs * 6 + balls);
+                let runsNeeded = target - score;
+                eqBox.innerText = `Need ${runsNeeded} runs in ${ballsLeft} balls`;
+                eqBox.style.display = 'block';
+            } else { eqBox.style.display = 'none'; }
+
             if(batterStats.length > 0 && strikerIdx < 6 && nonStrikerIdx < 6) {
                 const sData = batterStats[strikerIdx]; const nsData = batterStats[nonStrikerIdx];
                 document.getElementById('player-stats').innerHTML = `🏏 <b>${sData.name}</b>: ${sData.runs}* (${sData.balls}) &nbsp;|&nbsp; ${nsData.name}: ${nsData.runs}* (${nsData.balls}) &nbsp;|&nbsp; ⚾ <b>${currentBowlerName}</b>`;
             }
-            
-            // Fix: Last 9 Items Display for Ball Tracker
             const recentBalls = matchBallLog.slice(-9);
-            document.getElementById('ball-tracker').innerHTML = recentBalls.map(b => {
-                if(b === 'OVER_END') return `<div class="over-separator"></div>`;
-                return `<div class="ball-bubble ${b==='4'?'b-4':b==='6'?'b-6':b==='W'?'b-w':b==='WD'?'b-wd':''}">${b}</div>`;
-            }).join('');
+            document.getElementById('ball-tracker').innerHTML = recentBalls.map(b => { if(b === 'OVER_END') return `<div class="over-separator"></div>`; return `<div class="ball-bubble ${b==='4'?'b-4':b==='6'?'b-6':b==='W'?'b-w':b==='WD'?'b-wd':''}">${b}</div>`; }).join('');
         }
+        
         function showStatus(msg) { const el = document.getElementById('status'); el.innerText = msg; el.style.display = 'block'; gsap.fromTo(el, {scale: 0}, {scale: 1, duration: 0.5, ease: "elastic.out(1, 0.3)"}); setTimeout(() => el.style.display = 'none', 2500); }
 
         function renderMainMenu() {
-            const mc = document.getElementById('menu-container'); mc.classList.remove('hidden'); document.getElementById('commentary-box').innerText = "";
-            mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏏 ULTIMATE CRICKET</div><div class="menu-btn" id="btn-quick">⚡ QUICK MATCH</div><div class="menu-btn" id="btn-tourn">🏆 TOURNAMENT (16 TEAMS)</div></div>`;
+            const mc = document.getElementById('menu-container'); mc.classList.remove('hidden'); document.getElementById('commentary-box').innerText = ""; document.getElementById('equation-box').style.display = 'none';
+            let resBtn = "";
+            if (loadWC() && wc.phase !== 'FINISHED') { resBtn = `<div class="menu-btn resume-btn" id="btn-wc-res">▶ RESUME ${wc.isKnockoutOnly ? 'TOURNAMENT' : 'WORLD CUP'}</div>`; }
+            
+            mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏏 ULTIMATE CRICKET</div>
+            ${resBtn}
+            <div class="menu-btn" id="btn-quick">⚡ QUICK MATCH</div>
+            <div class="menu-btn" id="btn-wc-new">🏆 NEW WORLD CUP</div>
+            <div class="menu-btn trn-btn" id="btn-trn-new">⚔️ KNOCKOUT TOURNAMENT</div>
+            </div>`;
+
             document.getElementById('btn-quick').onclick = () => { gameMode = 'QUICK'; renderTeamSelect('PLAYER'); };
-            document.getElementById('btn-tourn').onclick = () => { gameMode = 'TOURNAMENT'; tournamentRound = 0; renderTeamSelect('PLAYER'); };
+            document.getElementById('btn-wc-new').onclick = () => { gameMode = 'WC'; clearWC(); renderTeamSelect('PLAYER'); };
+            document.getElementById('btn-trn-new').onclick = () => { gameMode = 'TOURNAMENT'; clearWC(); renderTeamSelect('PLAYER'); };
+            if(document.getElementById('btn-wc-res')) document.getElementById('btn-wc-res').onclick = () => { gameMode = wc.isKnockoutOnly ? 'TOURNAMENT' : 'WC'; renderWCHub(); };
         }
 
         function renderTeamSelect(step) {
@@ -502,36 +580,193 @@
             html += `</div></div>`; mc.innerHTML = html;
             document.querySelectorAll('.team-btn').forEach(b => {
                 b.onclick = () => {
-                    if(step === 'PLAYER') { playerTeam = b.dataset.team; if(gameMode === 'QUICK') renderTeamSelect('OPPONENT'); else { setupTournamentBracket(); renderTournamentMenu(); } } 
-                    else { opponentTeam = b.dataset.team; battingTeamStr = playerTeam; bowlingTeamStr = opponentTeam; isWatchMode = false; mc.classList.add('hidden'); innings = 1; startGame(); }
+                    if(step === 'PLAYER') { 
+                        playerTeam = b.dataset.team; 
+                        if(gameMode === 'QUICK') renderTeamSelect('OPPONENT'); 
+                        else if(gameMode === 'WC') { initWorldCup(); renderWCHub(); }
+                        else if(gameMode === 'TOURNAMENT') { initKnockout(); renderWCHub(); }
+                    } 
+                    else { opponentTeam = b.dataset.team; battingTeamStr = playerTeam; bowlingTeamStr = opponentTeam; mc.classList.add('hidden'); innings = 1; startGame(); }
                 };
             });
         }
 
-        function setupTournamentBracket() {
-            if(tournamentRound === 0) { let pool = TEAMS.filter(t => t !== playerTeam); pool.sort(() => Math.random() - 0.5); pool.unshift(playerTeam); tournamentBracket = []; for(let i=0; i<16; i+=2) tournamentBracket.push({p1: pool[i], p2: pool[i+1], winner: null}); } 
-            else { let newBracket = []; for(let i=0; i<tournamentBracket.length; i+=2) newBracket.push({p1: tournamentBracket[i].winner, p2: tournamentBracket[i+1].winner, winner: null}); tournamentBracket = newBracket; }
+        function initWorldCup() {
+            wc.active = true; wc.phase = 'GROUP'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.currentTab = 'A'; wc.isKnockoutOnly = false;
+            let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5);
+            pool.unshift(playerTeam); // Player is first in Group A
+            wc.groups = { A: pool.slice(0,4), B: pool.slice(4,8), C: pool.slice(8,12), D: pool.slice(12,16) };
+            TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; });
+            
+            let mId = 0;
+            for(let g in wc.groups) {
+                let tg = wc.groups[g];
+                let matchups = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]]; 
+                matchups.forEach(pair => { wc.matches.push({ id: mId++, phase: 'GROUP', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); });
+            }
+            saveWC();
         }
 
-        function renderTournamentMenu() {
-            const mc = document.getElementById('menu-container'); const roundNames = ["ROUND OF 16", "QUARTER FINALS", "SEMI FINALS", "FINAL"];
-            let html = `<div class="glass-panel"><div class="menu-title">${roundNames[tournamentRound]}</div>`; let allFinished = true;
-            tournamentBracket.forEach((m, idx) => {
-                const isMyMatch = m.p1 === playerTeam || m.p2 === playerTeam; if (!m.winner) allFinished = false;
-                html += `<div class="bracket-row ${isMyMatch ? 'my-match' : ''}"><span style="font-weight:bold">${m.p1} vs ${m.p2}</span>`;
-                if (m.winner) html += `<span style="color:#4CAF50; font-weight:bold">${m.winner} Won</span>`; else if (isMyMatch) html += `<button class="action-btn btn-play tourn-btn" data-idx="${idx}" data-action="PLAY">PLAY</button>`; else html += `<div><button class="action-btn btn-watch tourn-btn" data-idx="${idx}" data-action="WATCH">WATCH</button><button class="action-btn btn-sim tourn-btn" data-idx="${idx}" data-action="SIM">SIM</button></div>`;
+        function initKnockout() {
+            wc.active = true; wc.phase = 'ROUND OF 16'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.isKnockoutOnly = true;
+            let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5);
+            pool.unshift(playerTeam);
+            
+            let mId = 0;
+            for(let i=0; i<8; i++) {
+                wc.matches.push({ id: mId++, phase: 'ROUND OF 16', group: `M${i+1}`, t1: pool[i*2], t2: pool[i*2+1], status: 'PENDING', winner: null, res: "" });
+            }
+            saveWC();
+        }
+
+        function simMatch(mIdx) {
+            let match = wc.matches[mIdx];
+            let r1 = Math.floor(Math.random() * 25) + 15; let r2 = Math.floor(Math.random() * 25) + 15;
+            let o1 = TOTAL_OVERS, o2 = TOTAL_OVERS;
+
+            if(r1 > r2) { match.winner = match.t1; match.res = `${match.t1} won by ${r1-r2} runs`; o2 = TOTAL_OVERS; } 
+            else if(r2 > r1) { match.winner = match.t2; match.res = `${match.t2} won by ${Math.floor(Math.random()*3)+1} wkts`; o2 = (Math.random()*1 + 1.1).toFixed(1); } 
+            else { match.winner = "DRAW"; match.res = "Match Tied"; }
+            
+            let p1 = wc.points[match.t1], p2 = wc.points[match.t2];
+            if(p1 && p2) { 
+                if (match.winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; }
+                else if (match.winner === match.t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; }
+                else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; }
+                
+                p1.RS+=r1; p1.OF+=parseFloat(o1); p1.RC+=r2; p1.OB+=parseFloat(o2); 
+                p2.RS+=r2; p2.OF+=parseFloat(o2); p2.RC+=r1; p2.OB+=parseFloat(o1);
+                p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB); p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB);
+            }
+            match.status = 'DONE'; saveWC();
+        }
+
+        function checkPhaseComplete() {
+            let pending = wc.matches.filter(m => m.phase === wc.phase && m.status === 'PENDING');
+            if (pending.length === 0) advancePhase();
+        }
+
+        function advancePhase() {
+            let currentMatches = wc.matches.filter(m => m.phase === wc.phase);
+            let mId = wc.matches.length;
+
+            if (wc.isKnockoutOnly) {
+                if(wc.phase === 'ROUND OF 16') {
+                    wc.phase = 'QUARTER FINAL';
+                    for(let i=0; i<4; i++) wc.matches.push({ id: mId++, phase: 'QUARTER FINAL', group: `QF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" });
+                } else if(wc.phase === 'QUARTER FINAL') {
+                    wc.phase = 'SEMI FINAL';
+                    for(let i=0; i<2; i++) wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: `SF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" });
+                } else if(wc.phase === 'SEMI FINAL') {
+                    wc.phase = 'FINAL';
+                    wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" });
+                } else if(wc.phase === 'FINAL') wc.phase = 'FINISHED';
+            } else {
+                if (wc.phase === 'GROUP') {
+                    wc.phase = 'SUPER8'; let qualifiers = [];
+                    for(let g in wc.groups) {
+                        let sorted = wc.groups[g].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR);
+                        qualifiers.push(sorted[0], sorted[1]);
+                    }
+                    wc.super8 = { G1: [qualifiers[0], qualifiers[3], qualifiers[4], qualifiers[7]], G2: [qualifiers[1], qualifiers[2], qualifiers[5], qualifiers[6]] };
+                    wc.currentTab = 'G1';
+                    for(let g in wc.super8) {
+                        let tg = wc.super8[g]; let matchups = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
+                        matchups.forEach(pair => { wc.matches.push({ id: mId++, phase: 'SUPER8', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); });
+                    }
+                } 
+                else if (wc.phase === 'SUPER8') {
+                    wc.phase = 'SEMI FINAL'; let s1 = wc.super8.G1.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR);
+                    let s2 = wc.super8.G2.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR);
+                    wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF1', t1: s1[0], t2: s2[1], status: 'PENDING', winner: null, res: "" });
+                    wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF2', t1: s2[0], t2: s1[1], status: 'PENDING', winner: null, res: "" });
+                }
+                else if (wc.phase === 'SEMI FINAL') {
+                    wc.phase = 'FINAL'; 
+                    wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" });
+                }
+                else if (wc.phase === 'FINAL') { wc.phase = 'FINISHED'; }
+            }
+            saveWC(); renderWCHub();
+        }
+
+        window.setTab = function(tab) { wc.currentTab = tab; renderWCHub(); }
+
+        function renderWCHub() {
+            checkPhaseComplete();
+            const mc = document.getElementById('menu-container'); mc.classList.remove('hidden');
+            if (wc.phase === 'FINISHED') {
+                let finalM = wc.matches.find(m => m.phase === 'FINAL');
+                mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏆 CHAMPIONS: ${finalM.winner} 🏆</div>
+                <div class="overlay-text">${finalM.res}</div><button class="menu-btn" onclick="location.reload()">MAIN MENU</button></div>`;
+                return;
+            }
+
+            let html = `<div class="glass-panel" style="max-width:800px"><div class="menu-title">${wc.isKnockoutOnly ? 'TOURNAMENT' : 'WORLD CUP'} - ${wc.phase}</div><div class="wc-layout">`;
+            
+            // Left: Matches
+            html += `<div class="wc-panel" style="flex:1.2; max-height:400px; overflow-y:auto;"><h3>SCHEDULE</h3>`;
+            let currentMatches = wc.matches.filter(m => m.phase === wc.phase);
+            currentMatches.forEach(m => {
+                let isPlayerMatch = m.t1 === wc.playerTeam || m.t2 === wc.playerTeam;
+                html += `<div class="match-row ${isPlayerMatch?'my-match':''}"><span><b>${m.t1}</b> vs <b>${m.t2}</b> <small>(${m.group})</small></span>`;
+                if(m.status === 'DONE') html += `<span style="color:#4CAF50; font-size:11px">${m.res}</span>`;
+                else {
+                    html += `<div class="action-btns">`;
+                    if (isPlayerMatch) html += `<button class="action-btn btn-play" id="play-${m.id}">PLAY</button>`;
+                    else {
+                        html += `<button class="action-btn btn-watch" id="watch-${m.id}">WATCH</button>`;
+                        html += `<button class="action-btn btn-sim" id="sim-${m.id}">SIM</button>`;
+                    }
+                    html += `</div>`;
+                }
                 html += `</div>`;
             });
-            if (allFinished) html += `<button id="next-btn" class="menu-btn" ${tournamentRound === 3 ? 'style="background:gold; color:black;"' : ''}>${tournamentRound === 3 ? '🏆 TOURNAMENT COMPLETE 🏆' : 'ADVANCE TO NEXT ROUND'}</button>`; 
-            html += `</div>`; mc.innerHTML = html; mc.classList.remove('hidden');
-            
-            document.querySelectorAll('.tourn-btn').forEach(btn => {
-                btn.onclick = () => { const idx = btn.dataset.idx, action = btn.dataset.action, match = tournamentBracket[idx];
-                    if (action === 'SIM') { match.winner = Math.random() > 0.5 ? match.p1 : match.p2; renderTournamentMenu(); } 
-                    else { battingTeamStr = match.p1; bowlingTeamStr = match.p2; isWatchMode = (action === 'WATCH'); currentTournMatchIdx = idx; mc.classList.add('hidden'); innings = 1; startGame(); }
-                };
+            html += `</div>`;
+
+            // Right: Standings
+            if (!wc.isKnockoutOnly && (wc.phase === 'GROUP' || wc.phase === 'SUPER8')) {
+                html += `<div class="wc-panel" style="flex:1"><h3>STANDINGS</h3><div class="tab-bar">`;
+                let tabs = wc.phase === 'GROUP' ? ['A','B','C','D'] : ['G1','G2'];
+                if(!tabs.includes(wc.currentTab)) wc.currentTab = tabs[0];
+                tabs.forEach(t => { html += `<button class="tab-btn ${wc.currentTab===t?'active':''}" onclick="setTab('${t}')">Grp ${t}</button>`; });
+                html += `</div><table class="pts-table"><tr><th>Team</th><th>P</th><th>W</th><th>Pts</th><th>NRR</th></tr>`;
+                
+                let teamsInTab = wc.phase === 'GROUP' ? wc.groups[wc.currentTab] : wc.super8[wc.currentTab];
+                let sorted = [...teamsInTab].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR);
+                
+                sorted.forEach(t => {
+                    let p = wc.points[t];
+                    let highlight = (p.Pts > 0 || t === wc.playerTeam) ? (t===wc.playerTeam ? 'style="color:gold"' : '') : '';
+                    let nrrDisp = p.NRR > 0 ? `+${p.NRR.toFixed(2)}` : p.NRR.toFixed(2);
+                    html += `<tr ${highlight}><td><b>${t.substring(0,3).toUpperCase()}</b></td><td>${p.P}</td><td>${p.W}</td><td><b>${p.Pts}</b></td><td>${nrrDisp}</td></tr>`;
+                });
+                html += `</table></div>`;
+            } else {
+                html += `<div class="wc-panel" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;"><h3>KNOCKOUT STAGE</h3><div style="font-size:40px">⚔️</div></div>`;
+            }
+
+            html += `</div><button class="menu-btn" style="margin-top:15px; background:#444;" onclick="location.reload()">SAVE & EXIT TO MAIN MENU</button></div>`;
+            mc.innerHTML = html;
+
+            currentMatches.forEach(m => {
+                if(m.status === 'PENDING') {
+                    let simBtn = document.getElementById(`sim-${m.id}`);
+                    if(simBtn) simBtn.onclick = () => { simMatch(m.id); renderWCHub(); };
+                    
+                    let playBtn = document.getElementById(`play-${m.id}`);
+                    if(playBtn) playBtn.onclick = () => { 
+                        wc.currentMatchIdx = m.id; battingTeamStr = m.t1; bowlingTeamStr = m.t2; 
+                        mc.classList.add('hidden'); innings = 1; startGame(); 
+                    };
+
+                    let watchBtn = document.getElementById(`watch-${m.id}`);
+                    if(watchBtn) watchBtn.onclick = () => { 
+                        wc.currentMatchIdx = m.id; battingTeamStr = m.t1; bowlingTeamStr = m.t2; 
+                        mc.classList.add('hidden'); innings = 1; startGame(); 
+                    };
+                }
             });
-            const nextBtn = document.getElementById('next-btn'); if (nextBtn) { nextBtn.onclick = () => { if (tournamentRound === 3) renderMainMenu(); else { tournamentRound++; setupTournamentBracket(); renderTournamentMenu(); } }; }
         }
 
         function animate() {
