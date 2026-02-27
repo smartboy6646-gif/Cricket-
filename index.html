@@ -82,6 +82,11 @@
     <div id="commentary-box"></div>
     <div id="ball-tracker"></div>
     
+    <div id="toss-box" class="overlay-box" style="z-index: 500;">
+        <div class="overlay-title">🪙 TOSS TIME</div>
+        <div class="overlay-text" id="toss-text" style="font-size: 22px; color: #4CAF50;"></div>
+    </div>
+
     <div id="over-summary" class="overlay-box">
         <div class="overlay-title">END OF OVER <span id="os-over"></span></div>
         <div class="overlay-text">Score: <span id="os-score" class="overlay-highlight"></span></div>
@@ -105,77 +110,64 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import gsap from 'gsap';
 
-        // --- SCREEN WAKE LOCK (Prevents Dimming) ---
+        // --- SCREEN WAKE LOCK ---
         let wakeLock = null;
         async function requestWakeLock() {
             try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } 
             catch (err) { console.log("Wake Lock error:", err); }
         }
         document.addEventListener('visibilitychange', async () => { if (wakeLock !== null && document.visibilityState === 'visible') requestWakeLock(); });
-        requestWakeLock(); // Request initially
+        requestWakeLock(); 
 
-        const sounds = { bowl: null, hit: null, cheer: null };
-        function playSound(type) { if(sounds[type]) { sounds[type].currentTime = 0; sounds[type].play().catch(e=>{}); } }
-
-        // --- ADVANCED AUDIO COMMENTARY SYSTEM ---
-        // Here you can easily add your actual audio file paths inside the "audio" property.
-        const COMM_LINES = {
-            '6': [
-                { text: "That is out of here! HUGE SIX!", audio: "Hugesix.mp3" },
-                { text: "What a shot! It sails over the boundary.", audio: "" },
-                { text: "He smashed that one into the crowd!", audio: "" }
-            ],
-            '4': [
-                { text: "Pierces the gap beautifully! Four runs.", audio: "" },
-                { text: "Shot! One bounce and into the fence.", audio: "" }
-            ],
-            'BOWLED': [
-                { text: "BOWLED HIM! What a delivery!", audio: "" }
-            ],
-            'CAUGHT': [
-                { text: "In the air... and taken!", audio: "" }
-            ],
-            'RO': [
-                { text: "RUN OUT! A direct hit!", audio: "" }
-            ],
-            '0': [
-                { text: "Good delivery, dot ball.", audio: "" }
-            ],
-            '1': [
-                { text: "Just a single to rotate the strike.", audio: "" }
-            ],
-            '2': [
-                { text: "Excellent running between the wickets, two runs.", audio: "" }
-            ],
-            'WD': [
-                { text: "Wide ball. Extra run for the team.", audio: "" }
-            ]
+        // --- GAME SOUND EFFECTS (Bat Hit, Bowl, Cheer) ---
+        // यहाँ आफ्नो अडियो फाइलको लिङ्क हाल्नुहोला (उदाहरण: "audio/hit.mp3")
+        const gameAudio = {
+            hit: new Audio(""),   
+            bowl: new Audio(""),  
+            cheer: new Audio("")  
         };
 
-        let currentAudioObj = null;
-        let commTimeout = null;
+        function playGameSound(type) {
+            try {
+                if(gameAudio[type] && gameAudio[type].src && gameAudio[type].src !== window.location.href) {
+                    gameAudio[type].currentTime = 0;
+                    gameAudio[type].play().catch(e => console.log("Audio blocked"));
+                }
+            } catch(e) {}
+        }
+
+        // --- COMMENTARY AUDIO ---
+        const COMM_LINES = {
+            '6': [{ text: "That is out of here! HUGE SIX!", audio: "" }, { text: "What a shot! It sails over the boundary.", audio: "" }],
+            '4': [{ text: "Pierces the gap beautifully! Four runs.", audio: "" }, { text: "Shot! One bounce and into the fence.", audio: "" }],
+            'BOWLED': [{ text: "BOWLED HIM! What a delivery!", audio: "" }],
+            'CAUGHT': [{ text: "In the air... and taken!", audio: "" }],
+            'RO': [{ text: "RUN OUT! A direct hit!", audio: "" }],
+            '0': [{ text: "Good delivery, dot ball.", audio: "" }],
+            '1': [{ text: "Just a single to rotate the strike.", audio: "" }],
+            '2': [{ text: "Excellent running between the wickets, two runs.", audio: "" }],
+            'WD': [{ text: "Wide ball. Extra run for the team.", audio: "" }]
+        };
+
+        let currentAudioObj = null; let commTimeout = null;
 
         function playCommentaryAudio(audioSrc) {
             if (currentAudioObj) { currentAudioObj.pause(); currentAudioObj.currentTime = 0; }
             if (audioSrc && audioSrc !== "") {
                 currentAudioObj = new Audio(audioSrc);
-                currentAudioObj.play().catch(e => console.log("Audio not linked or blocked"));
+                currentAudioObj.play().catch(e => console.log("Commentary blocked"));
             }
         }
 
         function setCommentary(type) { 
             const lines = COMM_LINES[type] || [{ text: "Good cricket.", audio: "" }];
             const selectedLine = lines[Math.floor(Math.random() * lines.length)];
-            
             const box = document.getElementById('commentary-box');
             box.innerText = selectedLine.text;
-            
-            // Play linked audio
             playCommentaryAudio(selectedLine.audio);
-
-            // Hide text after 3.5 seconds
+            
             clearTimeout(commTimeout);
-            commTimeout = setTimeout(() => { box.innerText = ""; }, 3500);
+            commTimeout = setTimeout(() => { box.innerText = ""; }, 3500); // Hides after 3.5s
         }
 
         const TEAMS = ['Nepal', 'India', 'Australia', 'England', 'Pakistan', 'South Africa', 'West Indies', 'Sri Lanka', 'New Zealand', 'Bangladesh', 'Afghanistan', 'Zimbabwe', 'Ireland', 'Netherlands', 'Scotland', 'UAE'];
@@ -201,7 +193,6 @@
             'UAE': ['M. Waseem', 'A. Sharma', 'V. Aravind', 'B. Hameed', 'A. Khan', 'J. Siddique']
         };
 
-        // --- GAME STATE ---
         let scene, camera, renderer, controls;
         let bowler, strikerMesh, nonStrikerMesh, keeper, ball, ballShadow;
         let stumpsBowling, stumpsBatting, fielders = [], allPlayers = [];
@@ -315,6 +306,30 @@
             currentBowlerName = ROSTERS[bowlingTeamStr][5]; 
         }
 
+        // --- TOSS LOGIC ---
+        function processTossAndStart(t1, t2) {
+            const mc = document.getElementById('menu-container');
+            mc.classList.add('hidden');
+            
+            let tossWinner = Math.random() > 0.5 ? t1 : t2;
+            let tossLoser = tossWinner === t1 ? t2 : t1;
+            let choice = Math.random() > 0.5 ? 'BAT' : 'BOWL';
+            
+            if (choice === 'BAT') { battingTeamStr = tossWinner; bowlingTeamStr = tossLoser; } 
+            else { battingTeamStr = tossLoser; bowlingTeamStr = tossWinner; }
+            
+            const tb = document.getElementById('toss-box');
+            document.getElementById('toss-text').innerText = `${tossWinner} won the toss and elected to ${choice} first.`;
+            tb.style.display = 'block';
+            gsap.fromTo(tb, {scale: 0.5, opacity: 0}, {scale: 1, opacity: 1, duration: 0.5});
+            
+            setTimeout(() => {
+                tb.style.display = 'none';
+                innings = 1;
+                startGame();
+            }, 3500);
+        }
+
         function startGame() {
             clearTimeout(deliveryTimer); score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; 
             document.getElementById('commentary-box').innerText = "Match begins! Let's play.";
@@ -345,7 +360,7 @@
         }
 
         function releaseBall() {
-            camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playSound('BOWL');
+            camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playGameSound('bowl');
             let targetX = (Math.random()-0.5)*1.5; let isWide = false;
             if (Math.random() < 0.10) { isWide = true; targetX = strikerMesh.userData.isLeft ? (Math.random()>0.5 ? 2.5 : -2.5) : (Math.random()>0.5 ? 2.5 : -2.5); }
             gsap.to(ball.position, { z: 10, x: targetX, duration: 0.5, ease: 'linear' });
@@ -353,8 +368,8 @@
             setTimeout(() => { handleShot(targetX, isWide); }, 500);
         }
 
-        function celebrateWicket() { playSound('cheer'); [bowler, keeper].forEach(p => { if(!p) return; gsap.to(p.position, { y: 1.5, duration: 0.3, yoyo: true, repeat: 5 }); gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.3, yoyo: true, repeat: 5 }); }); }
-        function celebrateWin(winner) { playSound('cheer'); let team = winner === battingTeamStr ? [strikerMesh, nonStrikerMesh] : [bowler, keeper, ...fielders]; team.forEach(p => { if(!p) return; gsap.to(p.position, { y: 1.5, duration: 0.4, yoyo: true, repeat: -1 }); gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.4, yoyo: true, repeat: -1 }); }); }
+        function celebrateWicket() { playGameSound('cheer'); [bowler, keeper].forEach(p => { if(!p) return; gsap.to(p.position, { y: 1.5, duration: 0.3, yoyo: true, repeat: 5 }); gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.3, yoyo: true, repeat: 5 }); }); }
+        function celebrateWin(winner) { playGameSound('cheer'); let team = winner === battingTeamStr ? [strikerMesh, nonStrikerMesh] : [bowler, keeper, ...fielders]; team.forEach(p => { if(!p) return; gsap.to(p.position, { y: 1.5, duration: 0.4, yoyo: true, repeat: -1 }); gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.4, yoyo: true, repeat: -1 }); }); }
 
         function handleShot(bx, isWide) {
             camState = 'FOLLOW';
@@ -371,33 +386,33 @@
             const angle = Math.random() * Math.PI * 2; 
 
             if(shotType === 'BOWLED') {
-                playSound('hit'); wickets++; matchBallLog.push('W'); showStatus("BOWLED!"); setCommentary('BOWLED');
+                playGameSound('hit'); wickets++; matchBallLog.push('W'); showStatus("BOWLED!"); setCommentary('BOWLED');
                 const s = stumpsBatting.children[1]; gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); gsap.to(s.rotation, { x: 3, duration: 0.5 });
                 gsap.to(ball.position, { z: 14, y: 0.5, duration: 0.3 }); celebrateWicket(); setTimeout(() => finishDelivery(true, 0, true), 2500);
             } 
             else if(shotType === 'CAUGHT') {
-                playSound('hit'); const f = fielders[Math.floor(Math.random() * fielders.length)];
+                playGameSound('hit'); const f = fielders[Math.floor(Math.random() * fielders.length)];
                 gsap.to(ball.position, { x: f.position.x, z: f.position.z, duration: 1.5, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 15; }, onComplete: () => { 
                     wickets++; matchBallLog.push('W'); showStatus("CATCH OUT!"); setCommentary('CAUGHT'); celebrateWicket(); setTimeout(() => finishDelivery(true, 0, true), 2500); 
                 } });
             }
             else if (shotType === 'DOT') {
-                playSound('hit'); setCommentary('0'); gsap.to(ball.position, { z: 15, x: bx + Math.random(), y:0, duration: 0.5 }); matchBallLog.push('0'); updateScoreboard(); setTimeout(() => finishDelivery(true, 0, false), 1500);
+                playGameSound('hit'); setCommentary('0'); gsap.to(ball.position, { z: 15, x: bx + Math.random(), y:0, duration: 0.5 }); matchBallLog.push('0'); updateScoreboard(); setTimeout(() => finishDelivery(true, 0, false), 1500);
             }
             else if (shotType === 'FOUR') {
-                playSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+8); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+8) + 10;
+                playGameSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+8); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+8) + 10;
                 gsap.to(ball.position, { x: destX, z: destZ, y: 0, duration: 1.8, ease: 'power1.out', onComplete: () => {
-                    playSound('cheer'); showStatus("FOUR!"); setCommentary('4'); score += 4; matchBallLog.push('4'); updateScoreboard(); setTimeout(() => finishDelivery(true, 4, false), 2500);
+                    playGameSound('cheer'); showStatus("FOUR!"); setCommentary('4'); score += 4; matchBallLog.push('4'); updateScoreboard(); setTimeout(() => finishDelivery(true, 4, false), 2500);
                 }});
             }
             else if (shotType === 'SIX') {
-                playSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+20); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+20) + 10;
+                playGameSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+20); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+20) + 10;
                 gsap.to(ball.position, { x: destX, z: destZ, duration: 2, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 25; }, onComplete: () => {
-                    playSound('cheer'); showStatus("SIX!"); setCommentary('6'); score += 6; matchBallLog.push('6'); updateScoreboard(); setTimeout(() => finishDelivery(true, 6, false), 3000);
+                    playGameSound('cheer'); showStatus("SIX!"); setCommentary('6'); score += 6; matchBallLog.push('6'); updateScoreboard(); setTimeout(() => finishDelivery(true, 6, false), 3000);
                 }}); gsap.to(ball.position, { y: 2, duration: 0.4, delay: 2, yoyo: true, repeat: 1 }); 
             }
             else if (shotType === 'RUNS') {
-                playSound('hit'); const destX = Math.sin(angle) * (runs===2?45:25); const destZ = Math.cos(angle) * (runs===2?45:25) + 10;
+                playGameSound('hit'); const destX = Math.sin(angle) * (runs===2?45:25); const destZ = Math.cos(angle) * (runs===2?45:25) + 10;
                 const timeToChase = runs === 2 ? 3.0 : 1.8; 
                 gsap.to(ball.position, { x: destX, z: destZ, y: 0, duration: timeToChase, ease: 'power1.out' });
                 strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true;
@@ -476,14 +491,16 @@
         function processWCResult(winner, t1, t2) {
             let p1 = wc.points[t1], p2 = wc.points[t2];
             
-            if (winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; }
-            else if (winner === t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; }
-            else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; }
+            // Fix: Check if p1 and p2 exists before updating stats (Crucial for Knockout Mode)
+            if(p1 && p2) {
+                if (winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; }
+                else if (winner === t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; }
+                else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; }
+            }
 
             if(gameMode === 'WC' || gameMode === 'TOURNAMENT') {
                 let t1Runs, t1Overs, t2Runs, t2Overs;
                 
-                // In game, battingTeamStr is chasing (Innings 2), bowlingTeamStr defended (Innings 1)
                 if (t1 === battingTeamStr) { 
                     t1Runs = score; 
                     t1Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls);
@@ -522,10 +539,13 @@
                 setTimeout(() => {
                     msPanel.style.display = 'none';
                     if(gameMode === 'WC' || gameMode === 'TOURNAMENT') {
-                        wc.matches[wc.currentMatchIdx].winner = finalWinner;
-                        wc.matches[wc.currentMatchIdx].res = marginStr;
-                        wc.matches[wc.currentMatchIdx].status = 'DONE';
-                        processWCResult(finalWinner, wc.matches[wc.currentMatchIdx].t1, wc.matches[wc.currentMatchIdx].t2);
+                        let m = wc.matches.find(mx => mx.id === wc.currentMatchIdx);
+                        if(m) {
+                            m.winner = finalWinner;
+                            m.res = marginStr;
+                            m.status = 'DONE';
+                            processWCResult(finalWinner, m.t1, m.t2);
+                        }
                         renderWCHub();
                     } else { renderMainMenu(); }
                 }, 5000);
@@ -536,7 +556,6 @@
             document.getElementById('scorecard').innerText = `${battingTeamStr}: ${score}/${wickets} (${overs}.${balls})`;
             document.getElementById('target-info').innerText = innings === 2 ? `TARGET: ${target}` : "1st INNINGS";
             
-            // Required Runs Equation logic
             const eqBox = document.getElementById('equation-box');
             if (innings === 2 && target > 0 && overs < TOTAL_OVERS && wickets < MAX_WICKETS && score < target) {
                 let ballsLeft = (TOTAL_OVERS * 6) - (overs * 6 + balls);
@@ -586,7 +605,7 @@
                         else if(gameMode === 'WC') { initWorldCup(); renderWCHub(); }
                         else if(gameMode === 'TOURNAMENT') { initKnockout(); renderWCHub(); }
                     } 
-                    else { opponentTeam = b.dataset.team; battingTeamStr = playerTeam; bowlingTeamStr = opponentTeam; mc.classList.add('hidden'); innings = 1; startGame(); }
+                    else { opponentTeam = b.dataset.team; processTossAndStart(playerTeam, opponentTeam); }
                 };
             });
         }
@@ -612,6 +631,9 @@
             let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5);
             pool.unshift(playerTeam);
             
+            // Fix: Initialize points dictionary for Knockout to prevent tracking crash
+            TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; });
+
             let mId = 0;
             for(let i=0; i<8; i++) {
                 wc.matches.push({ id: mId++, phase: 'ROUND OF 16', group: `M${i+1}`, t1: pool[i*2], t2: pool[i*2+1], status: 'PENDING', winner: null, res: "" });
@@ -756,14 +778,12 @@
                     
                     let playBtn = document.getElementById(`play-${m.id}`);
                     if(playBtn) playBtn.onclick = () => { 
-                        wc.currentMatchIdx = m.id; battingTeamStr = m.t1; bowlingTeamStr = m.t2; 
-                        mc.classList.add('hidden'); innings = 1; startGame(); 
+                        wc.currentMatchIdx = m.id; processTossAndStart(m.t1, m.t2); 
                     };
 
                     let watchBtn = document.getElementById(`watch-${m.id}`);
                     if(watchBtn) watchBtn.onclick = () => { 
-                        wc.currentMatchIdx = m.id; battingTeamStr = m.t1; bowlingTeamStr = m.t2; 
-                        mc.classList.add('hidden'); innings = 1; startGame(); 
+                        wc.currentMatchIdx = m.id; processTossAndStart(m.t1, m.t2); 
                     };
                 }
             });
