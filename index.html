@@ -129,11 +129,20 @@
 
     <div id="menu-container"></div>
 
-    <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/","gsap":"https://unpkg.com/gsap@3.12.5/index.js"}}</script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+        }
+    }
+    </script>
+    
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // Added GLTFLoader
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; 
         import gsap from 'gsap';
 
         let wakeLock = null;
@@ -189,23 +198,51 @@
         let firstInningsOversFaced = 0, currentMatchTitleStr = "";
         let hasDisplayed50 = {}; 
 
-        // --- GLTF Models ---
+        // --- GLB Loading Trackers ---
         let loadedBallModel = null;
         let loadedBatModel = null;
+        let modelsLoaded = false;
 
         let wc = { active: false, phase: 'GROUP', playerTeam: '', groups: { A:[], B:[], C:[], D:[] }, super8: { G1:[], G2:[] }, points: {}, matches: [], currentMatchIdx: 0, currentTab: 'A', isKnockoutOnly: false, playerStats: {} };
 
-        function initPlayerStats() { 
-            wc.playerStats = {}; 
-            for(let t in ROSTERS) { ROSTERS[t].forEach(p => { wc.playerStats[p] = { runs: 0, ballsFaced: 0, wickets: 0, oversBowled: 0, runsConceded: 0, team: t }; }); } 
-        }
+        function initPlayerStats() { wc.playerStats = {}; for(let t in ROSTERS) { ROSTERS[t].forEach(p => { wc.playerStats[p] = { runs: 0, ballsFaced: 0, wickets: 0, oversBowled: 0, runsConceded: 0, team: t }; }); } }
         function saveWC() { localStorage.setItem('wcSaveData', JSON.stringify(wc)); }
-        function loadWC() { 
-            let d = localStorage.getItem('wcSaveData'); 
-            if(d) { wc = JSON.parse(d); if(!wc.playerStats || !wc.playerStats[ROSTERS['Nepal'][0]].ballsFaced === undefined) initPlayerStats(); return true; } 
-            return false; 
-        }
+        function loadWC() { let d = localStorage.getItem('wcSaveData'); if(d) { wc = JSON.parse(d); if(!wc.playerStats || !wc.playerStats[ROSTERS['Nepal'][0]].ballsFaced === undefined) initPlayerStats(); return true; } return false; }
         function clearWC() { localStorage.removeItem('wcSaveData'); }
+
+        // --- LOAD MODELS SAFELY ---
+        function load3DModelsAndStart() {
+            const loader = new GLTFLoader();
+            let batLoaded = false, ballLoaded = false;
+
+            function checkAllLoaded() {
+                if (batLoaded && ballLoaded) {
+                    modelsLoaded = true;
+                    // Switch Menu Display
+                    document.getElementById('loading-text').style.display = 'none';
+                    document.getElementById('menu-action-buttons').style.display = 'block';
+                }
+            }
+
+            loader.load('./ball.glb', function (gltf) {
+                loadedBallModel = gltf.scene;
+                // Scale is important - 1.0 might be huge or tiny depending on Blender
+                loadedBallModel.scale.set(0.8, 0.8, 0.8); 
+                console.log("Ball Model Loaded!");
+                ballLoaded = true; checkAllLoaded();
+            }, undefined, function (error) { 
+                console.error('Error loading ball:', error); ballLoaded = true; checkAllLoaded(); 
+            });
+
+            loader.load('./bat.glb', function (gltf) {
+                loadedBatModel = gltf.scene;
+                loadedBatModel.scale.set(1.5, 1.5, 1.5); 
+                console.log("Bat Model Loaded!");
+                batLoaded = true; checkAllLoaded();
+            }, undefined, function (error) { 
+                console.error('Error loading bat:', error); batLoaded = true; checkAllLoaded(); 
+            });
+        }
 
         function showBroadcastGraphic(type, playerName) {
             const tv = document.getElementById('tv-graphic');
@@ -243,10 +280,8 @@
             const popup = document.getElementById('milestone-alert');
             const text = document.getElementById('ms-text');
             const icon = document.getElementById('ms-icon');
-            
             if(type === 'FIFTY') { icon.innerText = "🔥"; text.innerText = `${playerName} scored a FIFTY (${value} Runs)!`; }
             else if(type === 'WICKET3') { icon.innerText = "🎯"; text.innerText = `${playerName} takes a 3-WICKET HAUL!`; }
-            
             popup.style.display = 'block';
             gsap.fromTo(popup, { x: -400 }, { x: 0, duration: 0.5, ease: "back.out(1.7)" });
             setTimeout(() => { gsap.to(popup, { x: -400, duration: 0.5, onComplete: () => popup.style.display = 'none' }); }, 5000);
@@ -261,23 +296,6 @@
             if (wktCount === 3 && !hasDisplayed50[currentBowlerName+"_w"]) {
                 hasDisplayed50[currentBowlerName+"_w"] = true; showMilestone('WICKET3', currentBowlerName, 3);
             }
-        }
-
-        function loadModels() {
-            const loader = new GLTFLoader();
-            // Load Ball
-            loader.load('ball.glb', function (gltf) {
-                loadedBallModel = gltf.scene;
-                // Scale the ball appropriately (adjust this value if it's too big or small)
-                loadedBallModel.scale.set(0.12, 0.12, 0.12); 
-            }, undefined, function (error) { console.error('Error loading ball:', error); });
-
-            // Load Bat
-            loader.load('bat.glb', function (gltf) {
-                loadedBatModel = gltf.scene;
-                // Adjust bat scale if needed
-                loadedBatModel.scale.set(0.8, 0.8, 0.8);
-            }, undefined, function (error) { console.error('Error loading bat:', error); });
         }
 
         function initScene() {
@@ -313,14 +331,9 @@
             
             stumpsBowling = createStumps(0, -10); stumpsBatting = createStumps(0, 10); scene.add(stumpsBowling); scene.add(stumpsBatting);
             
-            // Replaced Default Ball with Group to hold GLB later
-            ball = new THREE.Group(); 
-            ball.visible = false; 
-            scene.add(ball);
-            
+            ball = new THREE.Group(); ball.visible = false; scene.add(ball);
             ballShadow = new THREE.Mesh(new THREE.CircleGeometry(0.25), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); ballShadow.rotation.x = -Math.PI/2; ballShadow.visible = false; scene.add(ballShadow);
             
-            loadModels(); // Start loading the external files
             resetCameraStatic(); animate();
         }
 
@@ -358,12 +371,9 @@
             if (role === 'BAT') {
                 const batGroup = new THREE.Group(); 
                 
-                // ADDING THE CUSTOM BAT MODEL IF LOADED, ELSE FALLBACK
                 if (loadedBatModel) {
                     let customBat = loadedBatModel.clone();
-                    // Custom tweaks for your specific bat.glb to fit in hand
                     customBat.position.set(0, -0.4, 0); 
-                    // You might need to adjust rotation depending on how it was exported from Blender
                     customBat.rotation.set(0, Math.PI / 2, 0); 
                     batGroup.add(customBat);
                 } else {
@@ -417,8 +427,7 @@
             if (innings === 1) { target = 0; firstInningsScore = 0; firstInningsOversFaced = 0; }
             isBallInPlay = false; initStats();
             
-            // Setup Ball Object
-            while(ball.children.length > 0){ ball.remove(ball.children[0]); } // clear existing
+            while(ball.children.length > 0){ ball.remove(ball.children[0]); }
             if (loadedBallModel) { ball.add(loadedBallModel.clone()); } 
             else { const defaultBall = new THREE.Mesh(new THREE.SphereGeometry(0.12), new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.4 })); ball.add(defaultBall); }
 
@@ -452,8 +461,6 @@
 
         function releaseBall() {
             camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playGameSound('bowl');
-            
-            // Spin animation for the ball (if using glb model it will look cool)
             gsap.to(ball.rotation, {x: "+=10", z: "+=5", duration: 1, ease: "none"});
 
             let targetX = (Math.random()-0.5)*1.5; let isWide = false;
@@ -468,10 +475,7 @@
 
         function handleShot(bx, isWide) {
             camState = 'FOLLOW';
-            if (isWide) { 
-                showStatus("WIDE"); score += 1; liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + 1;
-                gsap.to(ball.position, { z: 15, x: bx*1.5, y: 0, duration: 0.5 }); matchBallLog.push('WD'); setCommentary('WD'); updateScoreboard(); setTimeout(() => finishDelivery(false, 0, false), 1500); return; 
-            }
+            if (isWide) { showStatus("WIDE"); score += 1; liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + 1; gsap.to(ball.position, { z: 15, x: bx*1.5, y: 0, duration: 0.5 }); matchBallLog.push('WD'); setCommentary('WD'); updateScoreboard(); setTimeout(() => finishDelivery(false, 0, false), 1500); return; }
 
             const bat = strikerMesh.userData.bat; gsap.to(bat.rotation, { x: -2.5, duration: 0.1, yoyo: true, repeat: 1 }); batterStats[strikerIdx].balls++;
             let bName = batterStats[strikerIdx].name; liveMatchStats.balls[bName] = (liveMatchStats.balls[bName] || 0) + 1;
@@ -537,14 +541,11 @@
             let overJustEnded = false; 
 
             if (isLegalBall) {
-                batterStats[strikerIdx].runs += runScored; balls++; 
-                liveMatchStats.runs[batterName] = (liveMatchStats.runs[batterName] || 0) + runScored;
+                batterStats[strikerIdx].runs += runScored; balls++; liveMatchStats.runs[batterName] = (liveMatchStats.runs[batterName] || 0) + runScored;
                 liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + runScored;
-
                 if(balls === 6) { 
                     balls = 0; overs++; matchBallLog.push('OVER_END'); overJustEnded = true;
                     liveMatchStats.overs[currentBowlerName] = (liveMatchStats.overs[currentBowlerName] || 0) + 1;
-
                     let availableIndices = [2, 3, 4, 5].filter(x => !bowlersUsed.includes(x));
                     if(availableIndices.length === 0) availableIndices = [0, 1, 2, 3, 4, 5].filter(x => !bowlersUsed.includes(x));
                     let nextBIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
@@ -553,18 +554,13 @@
             }
             
             if (isWicket) { 
-                batterStats[strikerIdx].out = true; 
-                liveMatchStats.wickets[currentBowlerName] = (liveMatchStats.wickets[currentBowlerName] || 0) + 1; 
-                if(wickets < MAX_WICKETS) { 
-                    strikerIdx = nextBatterIdx; nextBatterIdx++; 
-                    setTimeout(() => showBroadcastGraphic('BAT', batterStats[strikerIdx].name), 2000); 
-                } 
+                batterStats[strikerIdx].out = true; liveMatchStats.wickets[currentBowlerName] = (liveMatchStats.wickets[currentBowlerName] || 0) + 1; 
+                if(wickets < MAX_WICKETS) { strikerIdx = nextBatterIdx; nextBatterIdx++; setTimeout(() => showBroadcastGraphic('BAT', batterStats[strikerIdx].name), 2000); } 
             } 
             else if (runScored % 2 !== 0) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
             if (isLegalBall && balls === 0 && !isWicket) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
             
-            checkMilestones();
-            updateScoreboard();
+            checkMilestones(); updateScoreboard();
             
             let isMatchOver = false, isInningsOver = false;
             if(innings === 2 && score >= target) { isMatchOver = true; endMatch(battingTeamStr); }
@@ -580,12 +576,8 @@
             strikerMesh.position.set(0, 0, 10); strikerMesh.rotation.y = 0; nonStrikerMesh.position.set(1.5, 0, -10); nonStrikerMesh.rotation.y = Math.PI;
             resetCameraStatic(); fielders.forEach(f => { if(Math.abs(f.position.x) < 20 && Math.abs(f.position.z) < 20) { f.position.set(Math.cos(Math.random()*6)*50, 0, Math.sin(Math.random()*6)*50); f.lookAt(0,0,0); } });
             
-            if (overJustEnded) { 
-                showOverSummary(); 
-                setTimeout(() => showBroadcastGraphic('BOWL', currentBowlerName), 3500); 
-            } else { 
-                isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); 
-            }
+            if (overJustEnded) { showOverSummary(); setTimeout(() => showBroadcastGraphic('BOWL', currentBowlerName), 3500); } 
+            else { isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); }
         }
 
         function calculateNRR(rs, of, rc, ob) { return (of > 0 ? rs/of : 0) - (ob > 0 ? rc/ob : 0); }
@@ -605,7 +597,6 @@
                 else { t1Runs = firstInningsScore; t1Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced; t2Runs = score; t2Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls); }
                 
                 if(p1 && p2) { p1.RS += t1Runs; p1.OF += t1Overs; p1.RC += t2Runs; p1.OB += t2Overs; p2.RS += t2Runs; p2.OF += t2Overs; p2.RC += t1Runs; p2.OB += t1Overs; p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB); p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB); }
-                
                 for(let p in liveMatchStats.runs) if(wc.playerStats[p]) wc.playerStats[p].runs += liveMatchStats.runs[p];
                 for(let p in liveMatchStats.balls) if(wc.playerStats[p]) wc.playerStats[p].ballsFaced += liveMatchStats.balls[p];
                 for(let p in liveMatchStats.wickets) if(wc.playerStats[p]) wc.playerStats[p].wickets += liveMatchStats.wickets[p];
@@ -642,7 +633,6 @@
         function updateScoreboard() {
             document.getElementById('scorecard').innerText = `${battingTeamStr.substring(0,3).toUpperCase()}: ${score}/${wickets} (${overs}.${balls})`;
             document.getElementById('target-info').innerText = innings === 2 ? `TARGET: ${target}` : "1st INNINGS";
-            
             const eqBox = document.getElementById('equation-box');
             if (innings === 2 && target > 0 && overs < TOTAL_OVERS && wickets < MAX_WICKETS && score < target) {
                 let ballsLeft = (TOTAL_OVERS * 6) - (overs * 6 + balls); let runsNeeded = target - score;
@@ -655,8 +645,7 @@
                 document.getElementById('bowler-name').innerHTML = `<b>${currentBowlerName}</b>`;
             }
             
-            let lastOverEndIdx = matchBallLog.lastIndexOf('OVER_END');
-            let trackerBalls = [];
+            let lastOverEndIdx = matchBallLog.lastIndexOf('OVER_END'); let trackerBalls = [];
             if (lastOverEndIdx !== -1) {
                 let ballsAfter = matchBallLog.slice(lastOverEndIdx + 1);
                 if (ballsAfter.length > 0) { trackerBalls = ballsAfter; } 
@@ -676,15 +665,23 @@
             
             mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏏 ULTIMATE CRICKET</div>
             ${resBtn}
-            <div class="menu-btn" id="btn-quick">⚡ QUICK MATCH</div>
-            <div class="menu-btn" id="btn-wc-new">🏆 NEW WORLD CUP</div>
-            <div class="menu-btn trn-btn" id="btn-trn-new">⚔️ KNOCKOUT TOURNAMENT</div>
+            <div id="loading-text" style="color:#ffd700; font-weight:bold; margin: 20px 0; font-size:18px;">⏳ Loading 3D Models...</div>
+            <div id="menu-action-buttons" style="display:none;">
+                <div class="menu-btn" id="btn-quick">⚡ QUICK MATCH</div>
+                <div class="menu-btn" id="btn-wc-new">🏆 NEW WORLD CUP</div>
+                <div class="menu-btn trn-btn" id="btn-trn-new">⚔️ KNOCKOUT TOURNAMENT</div>
+            </div>
             </div>`;
 
             document.getElementById('btn-quick').onclick = () => { gameMode = 'QUICK'; renderTeamSelect('PLAYER'); };
             document.getElementById('btn-wc-new').onclick = () => { gameMode = 'WC'; clearWC(); renderTeamSelect('PLAYER'); };
             document.getElementById('btn-trn-new').onclick = () => { gameMode = 'TOURNAMENT'; clearWC(); renderTeamSelect('PLAYER'); };
             if(document.getElementById('btn-wc-res')) document.getElementById('btn-wc-res').onclick = () => { gameMode = wc.isKnockoutOnly ? 'TOURNAMENT' : 'WC'; renderWCHub(); };
+            
+            if (modelsLoaded) {
+                document.getElementById('loading-text').style.display = 'none';
+                document.getElementById('menu-action-buttons').style.display = 'block';
+            }
         }
 
         function renderTeamSelect(step) {
@@ -699,10 +696,7 @@
                         if(gameMode === 'QUICK') renderTeamSelect('OPPONENT'); 
                         else if(gameMode === 'WC') { initWorldCup(); renderWCHub(); }
                         else if(gameMode === 'TOURNAMENT') { initKnockout(); renderWCHub(); }
-                    } else { 
-                        opponentTeam = b.dataset.team; 
-                        processTossAndStart(playerTeam, opponentTeam, {phase: 'QUICK MATCH', id: 0}); 
-                    }
+                    } else { opponentTeam = b.dataset.team; processTossAndStart(playerTeam, opponentTeam, {phase: 'QUICK MATCH', id: 0}); }
                 };
             });
         }
@@ -712,7 +706,6 @@
             let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam);
             wc.groups = { A: pool.slice(0,4), B: pool.slice(4,8), C: pool.slice(8,12), D: pool.slice(12,16) };
             TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; });
-            
             let mId = 0; let matchups = [[0,1], [2,3], [0,2], [1,3], [0,3], [1,2]]; let groupOrder = ['A', 'B', 'C', 'D'];
             for (let round = 0; round < 6; round++) { for (let g of groupOrder) { let tg = wc.groups[g]; let pair = matchups[round]; wc.matches.push({ id: mId++, phase: 'GROUP', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); } }
             saveWC();
@@ -839,7 +832,11 @@
             controls.update(); if(ball.visible) { ballShadow.position.x = ball.position.x; ballShadow.position.z = ball.position.z; ballShadow.scale.setScalar(Math.max(0, 1 - ball.position.y/25)); }
         }
 
-        initScene(); renderMainMenu(); window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        // Initialize Scene and Models
+        initScene(); 
+        load3DModelsAndStart(); // Wait for models before showing menu buttons
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     </script>
 </body>
 </html>
