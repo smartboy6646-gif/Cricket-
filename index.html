@@ -133,6 +133,7 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // Added GLTFLoader
         import gsap from 'gsap';
 
         let wakeLock = null;
@@ -186,7 +187,11 @@
         let currentBowlerName = "", bowlersUsed = [];
         let liveMatchStats = { runs: {}, balls: {}, wickets: {}, overs: {}, runsConceded: {} }; 
         let firstInningsOversFaced = 0, currentMatchTitleStr = "";
-        let hasDisplayed50 = {}; // Track milestone per match
+        let hasDisplayed50 = {}; 
+
+        // --- GLTF Models ---
+        let loadedBallModel = null;
+        let loadedBatModel = null;
 
         let wc = { active: false, phase: 'GROUP', playerTeam: '', groups: { A:[], B:[], C:[], D:[] }, super8: { G1:[], G2:[] }, points: {}, matches: [], currentMatchIdx: 0, currentTab: 'A', isKnockoutOnly: false, playerStats: {} };
 
@@ -202,7 +207,6 @@
         }
         function clearWC() { localStorage.removeItem('wcSaveData'); }
 
-        // --- BROADCAST ANIMATIONS LOGIC ---
         function showBroadcastGraphic(type, playerName) {
             const tv = document.getElementById('tv-graphic');
             const title = document.getElementById('tv-graphic-title');
@@ -210,8 +214,6 @@
             const stats = document.getElementById('tv-graphic-stats');
             
             let pData = wc.playerStats[playerName] || { runs: 0, ballsFaced: 0, wickets: 0, oversBowled: 0, runsConceded: 0 };
-            
-            // Combine tournament stats with current live match stats for accurate display
             let totalRuns = pData.runs + (liveMatchStats.runs[playerName] || 0);
             let totalBalls = pData.ballsFaced + (liveMatchStats.balls[playerName] || 0);
             let totalWkts = pData.wickets + (liveMatchStats.wickets[playerName] || 0);
@@ -234,10 +236,7 @@
 
             tv.style.display = 'block';
             gsap.fromTo(tv, { x: -400, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" });
-            
-            setTimeout(() => {
-                gsap.to(tv, { x: -400, opacity: 0, duration: 0.5, ease: "power2.in", onComplete: () => tv.style.display = 'none' });
-            }, 4500);
+            setTimeout(() => { gsap.to(tv, { x: -400, opacity: 0, duration: 0.5, ease: "power2.in", onComplete: () => tv.style.display = 'none' }); }, 4500);
         }
 
         function showMilestone(type, playerName, value) {
@@ -256,16 +255,30 @@
         function checkMilestones() {
             let batter = batterStats[strikerIdx];
             if (batter.runs >= 50 && !hasDisplayed50[batter.name]) {
-                hasDisplayed50[batter.name] = true;
-                showMilestone('FIFTY', batter.name, batter.runs);
+                hasDisplayed50[batter.name] = true; showMilestone('FIFTY', batter.name, batter.runs);
             }
             let wktCount = liveMatchStats.wickets[currentBowlerName] || 0;
             if (wktCount === 3 && !hasDisplayed50[currentBowlerName+"_w"]) {
-                hasDisplayed50[currentBowlerName+"_w"] = true;
-                showMilestone('WICKET3', currentBowlerName, 3);
+                hasDisplayed50[currentBowlerName+"_w"] = true; showMilestone('WICKET3', currentBowlerName, 3);
             }
         }
-        // ------------------------------------
+
+        function loadModels() {
+            const loader = new GLTFLoader();
+            // Load Ball
+            loader.load('ball.glb', function (gltf) {
+                loadedBallModel = gltf.scene;
+                // Scale the ball appropriately (adjust this value if it's too big or small)
+                loadedBallModel.scale.set(0.12, 0.12, 0.12); 
+            }, undefined, function (error) { console.error('Error loading ball:', error); });
+
+            // Load Bat
+            loader.load('bat.glb', function (gltf) {
+                loadedBatModel = gltf.scene;
+                // Adjust bat scale if needed
+                loadedBatModel.scale.set(0.8, 0.8, 0.8);
+            }, undefined, function (error) { console.error('Error loading bat:', error); });
+        }
 
         function initScene() {
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f18); scene.fog = new THREE.Fog(0x0a0f18, 120, 600);
@@ -299,9 +312,15 @@
             stadiumGroup.add(new THREE.Points(fanGeo, new THREE.PointsMaterial({ size: 0.6, vertexColors: true }))); scene.add(stadiumGroup);
             
             stumpsBowling = createStumps(0, -10); stumpsBatting = createStumps(0, 10); scene.add(stumpsBowling); scene.add(stumpsBatting);
-            ball = new THREE.Mesh(new THREE.SphereGeometry(0.12), new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.4 })); ball.visible = false; scene.add(ball);
+            
+            // Replaced Default Ball with Group to hold GLB later
+            ball = new THREE.Group(); 
+            ball.visible = false; 
+            scene.add(ball);
+            
             ballShadow = new THREE.Mesh(new THREE.CircleGeometry(0.25), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })); ballShadow.rotation.x = -Math.PI/2; ballShadow.visible = false; scene.add(ballShadow);
             
+            loadModels(); // Start loading the external files
             resetCameraStatic(); animate();
         }
 
@@ -337,9 +356,23 @@
 
             group.userData.isMoving = false;
             if (role === 'BAT') {
-                const batGroup = new THREE.Group(); const blade = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xccaa88 })); blade.position.y = -0.4;
-                const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3), new THREE.MeshStandardMaterial({ color: 0x000000 })); handle.position.y = 0.15;
-                batGroup.add(blade); batGroup.add(handle); shoulders.add(batGroup);
+                const batGroup = new THREE.Group(); 
+                
+                // ADDING THE CUSTOM BAT MODEL IF LOADED, ELSE FALLBACK
+                if (loadedBatModel) {
+                    let customBat = loadedBatModel.clone();
+                    // Custom tweaks for your specific bat.glb to fit in hand
+                    customBat.position.set(0, -0.4, 0); 
+                    // You might need to adjust rotation depending on how it was exported from Blender
+                    customBat.rotation.set(0, Math.PI / 2, 0); 
+                    batGroup.add(customBat);
+                } else {
+                    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xccaa88 })); blade.position.y = -0.4;
+                    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3), new THREE.MeshStandardMaterial({ color: 0x000000 })); handle.position.y = 0.15;
+                    batGroup.add(blade); batGroup.add(handle); 
+                }
+
+                shoulders.add(batGroup);
                 group.userData.isLeft = Math.random() > 0.5;
                 if(group.userData.isLeft) { batGroup.position.set(-0.2, -0.4, 0.4); batGroup.rotation.x = -0.3; shoulders.rotation.y = 1.5; head.rotation.y = -1.5; } 
                 else { batGroup.position.set(0.2, -0.4, 0.4); batGroup.rotation.x = -0.3; shoulders.rotation.y = -1.5; head.rotation.y = 1.5; }
@@ -356,8 +389,8 @@
         function processTossAndStart(t1, t2, matchInfo) {
             const mc = document.getElementById('menu-container'); mc.classList.add('hidden');
             liveMatchStats = { runs: {}, balls: {}, wickets: {}, overs: {}, runsConceded: {} };
-            hasDisplayed50 = {}; // reset milestone tracker for match
-            if(!wc.playerStats) initPlayerStats(); // Fallback ensure stats object exists
+            hasDisplayed50 = {}; 
+            if(!wc.playerStats) initPlayerStats(); 
             
             currentMatchTitleStr = `${t1.substring(0,3).toUpperCase()} vs ${t2.substring(0,3).toUpperCase()}`;
             document.getElementById('hud-match-title').innerText = currentMatchTitleStr;
@@ -384,6 +417,11 @@
             if (innings === 1) { target = 0; firstInningsScore = 0; firstInningsOversFaced = 0; }
             isBallInPlay = false; initStats();
             
+            // Setup Ball Object
+            while(ball.children.length > 0){ ball.remove(ball.children[0]); } // clear existing
+            if (loadedBallModel) { ball.add(loadedBallModel.clone()); } 
+            else { const defaultBall = new THREE.Mesh(new THREE.SphereGeometry(0.12), new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.4 })); ball.add(defaultBall); }
+
             bowlersUsed = []; let initialBIdx = 5; bowlersUsed.push(initialBIdx); currentBowlerName = ROSTERS[bowlingTeamStr][initialBIdx];
             allPlayers.forEach(p => { gsap.killTweensOf(p.position); gsap.killTweensOf(p.userData.shoulders.rotation); scene.remove(p); }); allPlayers = []; fielders = [];
 
@@ -398,11 +436,9 @@
             updateScoreboard(); showStatus(innings === 1 ? "MATCH START" : "2ND INNINGS");
             resetCameraStatic(); 
 
-            // Show initial broadcast graphics
             setTimeout(() => { showBroadcastGraphic('BAT', batterStats[strikerIdx].name); }, 1500);
             setTimeout(() => { showBroadcastGraphic('BOWL', currentBowlerName); }, 5000);
-
-            deliveryTimer = setTimeout(deliverBall, 9000); // delay start to let graphics show
+            deliveryTimer = setTimeout(deliverBall, 9000); 
         }
 
         function deliverBall() {
@@ -416,6 +452,10 @@
 
         function releaseBall() {
             camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playGameSound('bowl');
+            
+            // Spin animation for the ball (if using glb model it will look cool)
+            gsap.to(ball.rotation, {x: "+=10", z: "+=5", duration: 1, ease: "none"});
+
             let targetX = (Math.random()-0.5)*1.5; let isWide = false;
             if (Math.random() < 0.10) { isWide = true; targetX = strikerMesh.userData.isLeft ? (Math.random()>0.5 ? 2.5 : -2.5) : (Math.random()>0.5 ? 2.5 : -2.5); }
             gsap.to(ball.position, { z: 10, x: targetX, duration: 0.5, ease: 'linear' });
@@ -517,7 +557,7 @@
                 liveMatchStats.wickets[currentBowlerName] = (liveMatchStats.wickets[currentBowlerName] || 0) + 1; 
                 if(wickets < MAX_WICKETS) { 
                     strikerIdx = nextBatterIdx; nextBatterIdx++; 
-                    setTimeout(() => showBroadcastGraphic('BAT', batterStats[strikerIdx].name), 2000); // Show new batter graphic
+                    setTimeout(() => showBroadcastGraphic('BAT', batterStats[strikerIdx].name), 2000); 
                 } 
             } 
             else if (runScored % 2 !== 0) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
@@ -542,7 +582,7 @@
             
             if (overJustEnded) { 
                 showOverSummary(); 
-                setTimeout(() => showBroadcastGraphic('BOWL', currentBowlerName), 3500); // Show new bowler graphic after summary
+                setTimeout(() => showBroadcastGraphic('BOWL', currentBowlerName), 3500); 
             } else { 
                 isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); 
             }
@@ -566,7 +606,6 @@
                 
                 if(p1 && p2) { p1.RS += t1Runs; p1.OF += t1Overs; p1.RC += t2Runs; p1.OB += t2Overs; p2.RS += t2Runs; p2.OF += t2Overs; p2.RC += t1Runs; p2.OB += t1Overs; p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB); p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB); }
                 
-                // Merge Live Stats
                 for(let p in liveMatchStats.runs) if(wc.playerStats[p]) wc.playerStats[p].runs += liveMatchStats.runs[p];
                 for(let p in liveMatchStats.balls) if(wc.playerStats[p]) wc.playerStats[p].ballsFaced += liveMatchStats.balls[p];
                 for(let p in liveMatchStats.wickets) if(wc.playerStats[p]) wc.playerStats[p].wickets += liveMatchStats.wickets[p];
