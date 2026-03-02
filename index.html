@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE 3D CRICKET - BROADCAST EDITION</title>
+    <title>ULTIMATE 3D CRICKET - REALISTIC CHIBI</title>
+    
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+    
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; color: white; user-select: none; }
         
@@ -40,7 +45,7 @@
 
         .overlay-box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 20, 10, 0.95); border: 2px solid #ffd700; padding: 25px; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.8); z-index: 300; text-align: center; width: 85%; max-width: 450px; display: none; }
         .overlay-title { font-size: 24px; color: #ffd700; font-weight: 900; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 10px; }
-        .overlay-text { font-size: 18px; color: #fff; margin: 8px 0; font-weight: bold; }
+        .overlay-text { font-size: 16px; color: #fff; margin: 8px 0; font-weight: bold; }
         .overlay-highlight { color: #4CAF50; font-size: 20px; }
 
         /* ----- MENUS ----- */
@@ -78,6 +83,12 @@
     </style>
 </head>
 <body>
+    <div id="debug-logger" style="position: absolute; top: 5px; left: 5px; color: #ff5555; font-weight: bold; z-index: 99999; font-size: 14px; text-shadow: 1px 1px 2px black;"></div>
+    
+    <script>
+        window.addEventListener('error', function(event) { document.getElementById('debug-logger').innerHTML += '🚨 ERROR: ' + event.message + '<br>'; });
+    </script>
+
     <div id="hud">
         <div class="score-container">
             <div class="score-top-row">
@@ -114,8 +125,11 @@
 
     <div id="over-summary" class="overlay-box">
         <div class="overlay-title">END OF OVER <span id="os-over"></span></div>
-        <div class="overlay-text">Score: <span id="os-score" class="overlay-highlight"></span></div>
-        <div class="overlay-text" id="os-striker"></div>
+        <div class="overlay-text" style="font-size: 22px;">Score: <span id="os-score" class="overlay-highlight"></span></div>
+        <hr style="border-color:#444; margin:10px 0;">
+        <div class="overlay-text" id="os-striker" style="color:#4fc3f7;"></div>
+        <div class="overlay-text" id="os-nonstriker" style="color:#b3e5fc;"></div>
+        <hr style="border-color:#444; margin:10px 0;">
         <div class="overlay-text" id="os-rate"></div>
         <div class="overlay-text" id="os-req" style="color: #ff9800; font-size: 20px; margin-top: 10px;"></div>
     </div>
@@ -129,12 +143,7 @@
 
     <div id="menu-container"></div>
 
-    <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/","gsap":"https://unpkg.com/gsap@3.12.5/index.js"}}</script>
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import gsap from 'gsap';
-
+    <script>
         let wakeLock = null;
         async function requestWakeLock() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
         document.addEventListener('visibilitychange', async () => { if (wakeLock !== null && document.visibilityState === 'visible') requestWakeLock(); });
@@ -144,7 +153,7 @@
         function playGameSound(type) { try { if(gameAudio[type] && gameAudio[type].src && gameAudio[type].src !== window.location.href) { gameAudio[type].currentTime = 0; gameAudio[type].play().catch(e => {}); } } catch(e) {} }
 
         const COMM_LINES = {
-            '6': [{ text: "That is out of here! HUGE SIX!", audio: "Hugesix.mp3" }, { text: "What a shot! It sails over the boundary.", audio: "Hugesix.mp3" }],
+            '6': [{ text: "That is out of here! HUGE SIX!", audio: "" }, { text: "What a shot! It sails over the boundary.", audio: "" }],
             '4': [{ text: "Pierces the gap beautifully! Four runs.", audio: "" }],
             'BOWLED': [{ text: "BOWLED HIM! What a delivery!", audio: "" }],
             'CAUGHT': [{ text: "In the air... and taken!", audio: "" }],
@@ -160,7 +169,13 @@
         function setCommentary(type) { const lines = COMM_LINES[type] || [{ text: "Good cricket.", audio: "" }]; const selectedLine = lines[Math.floor(Math.random() * lines.length)]; const box = document.getElementById('commentary-box'); box.innerText = selectedLine.text; playCommentaryAudio(selectedLine.audio); clearTimeout(commTimeout); commTimeout = setTimeout(() => { box.innerText = ""; }, 3500); }
 
         const TEAMS = ['Nepal', 'India', 'Australia', 'England', 'Pakistan', 'South Africa', 'West Indies', 'Sri Lanka', 'New Zealand', 'Bangladesh', 'Afghanistan', 'Zimbabwe', 'Ireland', 'Netherlands', 'Scotland', 'UAE'];
-        const TEAM_COLORS = { 'Nepal': 0x003893, 'India': 0x1F77B4, 'Australia': 0xFFD700, 'England': 0xCE1124, 'Pakistan': 0x1D5E3F, 'South Africa': 0xF1C40F, 'West Indies': 0x800080, 'Sri Lanka': 0x000080, 'New Zealand': 0x111111, 'Bangladesh': 0x006A4E, 'Afghanistan': 0x0000FF, 'Zimbabwe': 0xD40000, 'Ireland': 0x009A44, 'Netherlands': 0xFF6600, 'Scotland': 0x001A4D, 'UAE': 0x555555 };
+
+        const TEAM_COLORS = { 
+            'Nepal': 0x003893, 'India': 0x00AEEF, 'Australia': 0xFFD700, 'England': 0xCF0A2C, 
+            'Pakistan': 0x006600, 'South Africa': 0x007749, 'West Indies': 0x7B0041, 'Sri Lanka': 0x002366, 
+            'New Zealand': 0x111111, 'Bangladesh': 0x006A4E, 'Afghanistan': 0x0000FF, 'Zimbabwe': 0xD40000, 
+            'Ireland': 0x009A44, 'Netherlands': 0xFF6600, 'Scotland': 0x001A4D, 'UAE': 0x888888 
+        };
         const TOTAL_OVERS = 3, MAX_WICKETS = 5, BOUNDARY_RADIUS = 60;
         
         const ROSTERS = {
@@ -186,23 +201,44 @@
         let currentBowlerName = "", bowlersUsed = [];
         let liveMatchStats = { runs: {}, balls: {}, wickets: {}, overs: {}, runsConceded: {} }; 
         let firstInningsOversFaced = 0, currentMatchTitleStr = "";
-        let hasDisplayed50 = {}; // Track milestone per match
+        let hasDisplayed50 = {}; 
 
         let wc = { active: false, phase: 'GROUP', playerTeam: '', groups: { A:[], B:[], C:[], D:[] }, super8: { G1:[], G2:[] }, points: {}, matches: [], currentMatchIdx: 0, currentTab: 'A', isKnockoutOnly: false, playerStats: {} };
+
+        function clampToBoundary(x, z, margin) {
+            let maxRadius = BOUNDARY_RADIUS - margin;
+            let dist = Math.hypot(x, z);
+            if (dist > maxRadius) {
+                let scale = maxRadius / dist;
+                return { x: x * scale, z: z * scale };
+            }
+            return { x: x, z: z };
+        }
 
         function initPlayerStats() { 
             wc.playerStats = {}; 
             for(let t in ROSTERS) { ROSTERS[t].forEach(p => { wc.playerStats[p] = { runs: 0, ballsFaced: 0, wickets: 0, oversBowled: 0, runsConceded: 0, team: t }; }); } 
         }
-        function saveWC() { localStorage.setItem('wcSaveData', JSON.stringify(wc)); }
+
+        // =====================================
+        // FIX: SAVE & LOAD FUNCTION RESTORED
+        // =====================================
+        function saveWC() { 
+            try { localStorage.setItem('wcSaveData', JSON.stringify(wc)); } catch(e) {}
+        }
         function loadWC() { 
-            let d = localStorage.getItem('wcSaveData'); 
-            if(d) { wc = JSON.parse(d); if(!wc.playerStats || !wc.playerStats[ROSTERS['Nepal'][0]].ballsFaced === undefined) initPlayerStats(); return true; } 
+            try {
+                let d = localStorage.getItem('wcSaveData'); 
+                if(d) { 
+                    wc = JSON.parse(d); 
+                    if(!wc.playerStats || !wc.playerStats[ROSTERS['Nepal'][0]]) { initPlayerStats(); }
+                    return true; 
+                }
+            } catch (error) { console.error("Save Data Error", error); clearWC(); }
             return false; 
         }
-        function clearWC() { localStorage.removeItem('wcSaveData'); }
+        function clearWC() { try { localStorage.removeItem('wcSaveData'); } catch(e){} }
 
-        // --- BROADCAST ANIMATIONS LOGIC ---
         function showBroadcastGraphic(type, playerName) {
             const tv = document.getElementById('tv-graphic');
             const title = document.getElementById('tv-graphic-title');
@@ -210,8 +246,6 @@
             const stats = document.getElementById('tv-graphic-stats');
             
             let pData = wc.playerStats[playerName] || { runs: 0, ballsFaced: 0, wickets: 0, oversBowled: 0, runsConceded: 0 };
-            
-            // Combine tournament stats with current live match stats for accurate display
             let totalRuns = pData.runs + (liveMatchStats.runs[playerName] || 0);
             let totalBalls = pData.ballsFaced + (liveMatchStats.balls[playerName] || 0);
             let totalWkts = pData.wickets + (liveMatchStats.wickets[playerName] || 0);
@@ -219,59 +253,41 @@
             let totalRunCon = pData.runsConceded + (liveMatchStats.runsConceded[playerName] || 0);
 
             name.innerText = playerName;
-
             if (type === 'BAT') {
-                title.innerText = "CURRENT BATTER";
-                title.style.color = "#4fc3f7"; tv.style.borderLeftColor = "#1976D2";
+                title.innerText = "CURRENT BATTER"; title.style.color = "#4fc3f7"; tv.style.borderLeftColor = "#1976D2";
                 let sr = totalBalls > 0 ? ((totalRuns / totalBalls) * 100).toFixed(1) : "0.0";
                 stats.innerText = `Tournament: ${totalRuns} Runs (${totalBalls} balls) | SR: ${sr}`;
             } else {
-                title.innerText = "BOWLING ATTACK";
-                title.style.color = "#ffb74d"; tv.style.borderLeftColor = "#F57C00";
+                title.innerText = "BOWLING ATTACK"; title.style.color = "#ffb74d"; tv.style.borderLeftColor = "#F57C00";
                 let econ = totalOvers > 0 ? (totalRunCon / totalOvers).toFixed(1) : "0.0";
                 stats.innerText = `Tournament: ${totalWkts} Wickets (${totalOvers} overs) | Econ: ${econ}`;
             }
-
-            tv.style.display = 'block';
-            gsap.fromTo(tv, { x: -400, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" });
-            
-            setTimeout(() => {
-                gsap.to(tv, { x: -400, opacity: 0, duration: 0.5, ease: "power2.in", onComplete: () => tv.style.display = 'none' });
-            }, 4500);
+            tv.style.display = 'block'; window.gsap.fromTo(tv, { x: -400, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power2.out" });
+            setTimeout(() => { window.gsap.to(tv, { x: -400, opacity: 0, duration: 0.5, ease: "power2.in", onComplete: () => tv.style.display = 'none' }); }, 4500);
         }
 
         function showMilestone(type, playerName, value) {
             const popup = document.getElementById('milestone-alert');
             const text = document.getElementById('ms-text');
             const icon = document.getElementById('ms-icon');
-            
             if(type === 'FIFTY') { icon.innerText = "🔥"; text.innerText = `${playerName} scored a FIFTY (${value} Runs)!`; }
             else if(type === 'WICKET3') { icon.innerText = "🎯"; text.innerText = `${playerName} takes a 3-WICKET HAUL!`; }
-            
-            popup.style.display = 'block';
-            gsap.fromTo(popup, { x: -400 }, { x: 0, duration: 0.5, ease: "back.out(1.7)" });
-            setTimeout(() => { gsap.to(popup, { x: -400, duration: 0.5, onComplete: () => popup.style.display = 'none' }); }, 5000);
+            popup.style.display = 'block'; window.gsap.fromTo(popup, { x: -400 }, { x: 0, duration: 0.5, ease: "back.out(1.7)" });
+            setTimeout(() => { window.gsap.to(popup, { x: -400, duration: 0.5, onComplete: () => popup.style.display = 'none' }); }, 5000);
         }
 
         function checkMilestones() {
             let batter = batterStats[strikerIdx];
-            if (batter.runs >= 50 && !hasDisplayed50[batter.name]) {
-                hasDisplayed50[batter.name] = true;
-                showMilestone('FIFTY', batter.name, batter.runs);
-            }
+            if (batter.runs >= 50 && !hasDisplayed50[batter.name]) { hasDisplayed50[batter.name] = true; showMilestone('FIFTY', batter.name, batter.runs); }
             let wktCount = liveMatchStats.wickets[currentBowlerName] || 0;
-            if (wktCount === 3 && !hasDisplayed50[currentBowlerName+"_w"]) {
-                hasDisplayed50[currentBowlerName+"_w"] = true;
-                showMilestone('WICKET3', currentBowlerName, 3);
-            }
+            if (wktCount === 3 && !hasDisplayed50[currentBowlerName+"_w"]) { hasDisplayed50[currentBowlerName+"_w"] = true; showMilestone('WICKET3', currentBowlerName, 3); }
         }
-        // ------------------------------------
 
         function initScene() {
             scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f18); scene.fog = new THREE.Fog(0x0a0f18, 120, 600);
             camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; document.body.appendChild(renderer.domElement);
-            controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - 0.02; controls.maxDistance = 150;
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - 0.02; controls.maxDistance = 150;
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.4));
             const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(50, 80, -50); sun.castShadow = true; sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048; scene.add(sun);
@@ -281,8 +297,21 @@
             const pitch = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.05, 22), new THREE.MeshStandardMaterial({ color: 0xc4a473 })); pitch.receiveShadow = true; pitch.position.y = 0.03; scene.add(pitch);
             
             const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            
             const creaseBat = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.06), lineMat); creaseBat.rotation.x = -Math.PI/2; creaseBat.position.set(0, 0.06, 8.8); scene.add(creaseBat);
             const creaseBowl = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.06), lineMat); creaseBowl.rotation.x = -Math.PI/2; creaseBowl.position.set(0, 0.06, -8.8); scene.add(creaseBowl);
+
+            const bowlLineBat = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.06), lineMat); bowlLineBat.rotation.x = -Math.PI/2; bowlLineBat.position.set(0, 0.06, 10); scene.add(bowlLineBat);
+            const bowlLineBowl = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.06), lineMat); bowlLineBowl.rotation.x = -Math.PI/2; bowlLineBowl.position.set(0, 0.06, -10); scene.add(bowlLineBowl);
+
+            const returnLength = 2.4; const returnZBat = 8.8 + (returnLength/2) - 0.03; const returnZBowl = -8.8 - (returnLength/2) + 0.03;
+            
+            const wideLineL1 = new THREE.Mesh(new THREE.PlaneGeometry(0.06, returnLength), lineMat); wideLineL1.rotation.x = -Math.PI/2; wideLineL1.position.set(-1.5, 0.06, returnZBat); scene.add(wideLineL1);
+            const wideLineR1 = new THREE.Mesh(new THREE.PlaneGeometry(0.06, returnLength), lineMat); wideLineR1.rotation.x = -Math.PI/2; wideLineR1.position.set(1.5, 0.06, returnZBat); scene.add(wideLineR1);
+            
+            const wideLineL2 = new THREE.Mesh(new THREE.PlaneGeometry(0.06, returnLength), lineMat); wideLineL2.rotation.x = -Math.PI/2; wideLineL2.position.set(-1.5, 0.06, returnZBowl); scene.add(wideLineL2);
+            const wideLineR2 = new THREE.Mesh(new THREE.PlaneGeometry(0.06, returnLength), lineMat); wideLineR2.rotation.x = -Math.PI/2; wideLineR2.position.set(1.5, 0.06, returnZBowl); scene.add(wideLineR2);
+
             const rope = new THREE.Mesh(new THREE.TorusGeometry(BOUNDARY_RADIUS, 0.3, 8, 100), new THREE.MeshStandardMaterial({ color: 0xffffff })); rope.rotation.x = -Math.PI/2; scene.add(rope);
 
             const stadiumGroup = new THREE.Group();
@@ -314,222 +343,472 @@
             return g;
         }
 
-        function resetCameraStatic() { camState = 'STATIC'; gsap.to(camera.position, { x: 0, y: 12, z: -25, duration: 1 }); controls.target.set(0, 1, 8); }
+        function resetCameraStatic() { camState = 'STATIC'; window.gsap.to(camera.position, { x: 0, y: 15, z: -35, duration: 1 }); controls.target.set(0, 1, 0); }
 
         function createPlayer(teamName, role) {
-            const color = TEAM_COLORS[teamName] || 0xffffff, group = new THREE.Group();
-            const kitMat = new THREE.MeshStandardMaterial({ color: color }), skinMat = new THREE.MeshStandardMaterial({ color: 0xd2a679 });
-            const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.9), new THREE.MeshStandardMaterial({color: 0x111})); legL.position.set(-0.15, 0.45, 0);
-            const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.9), new THREE.MeshStandardMaterial({color: 0x111})); legR.position.set(0.15, 0.45, 0);
-            group.add(legL); group.add(legR); group.userData.legs = [legL, legR];
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.25), kitMat); torso.position.y = 1.25; group.add(torso);
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.25), skinMat); head.position.y = 1.78; 
-            const eyeMat = new THREE.MeshBasicMaterial({color: 0x000000});
-            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.035), eyeMat); eyeR.position.set(0.08, 0.05, 0.22); head.add(eyeR);
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.035), eyeMat); eyeL.position.set(-0.08, 0.05, 0.22); head.add(eyeL);
-            const capGroup = new THREE.Group(); const capBase = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 16, 0, Math.PI*2, 0, Math.PI/2), kitMat);
-            const capBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.05, 16, 1, false, 0, Math.PI), kitMat); capBrim.position.set(0, -0.05, 0.15); capBrim.scale.set(1, 1, 1.2);
-            capGroup.add(capBase); capGroup.add(capBrim); capGroup.position.y = 0.05; head.add(capGroup); if (role === 'BAT') head.rotation.y = 1.5; group.add(head);
-            const shoulders = new THREE.Group(); shoulders.position.y = 1.5; group.add(shoulders); group.userData.shoulders = shoulders;
-            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.65, 0.12), kitMat); armL.position.set(-0.35, -0.3, 0);
-            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.65, 0.12), kitMat); armR.position.set(0.35, -0.3, 0);
-            shoulders.add(armL); shoulders.add(armR);
+            const color = TEAM_COLORS[teamName] || 0xffffff;
+            const group = new THREE.Group(); group.userData.uuid = Math.random(); 
 
-            group.userData.isMoving = false;
+            const kitMat = new THREE.MeshStandardMaterial({ color: color, flatShading: true });
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdcb3, flatShading: true }); 
+            const shoeMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, flatShading: true });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222, flatShading: true });
+
+            const legGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.7, 8); legGeo.translate(0, -0.35, 0); 
+            const legL = new THREE.Mesh(legGeo, darkMat); legL.position.set(-0.18, 0.8, 0);
+            const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.25), shoeMat); shoeL.position.set(0, -0.7, 0.05); legL.add(shoeL);
+            const legR = new THREE.Mesh(legGeo, darkMat); legR.position.set(0.18, 0.8, 0);
+            const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.25), shoeMat); shoeR.position.set(0, -0.7, 0.05); legR.add(shoeR);
+            group.add(legL); group.add(legR); group.userData.legs = [legL, legR];
+
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.25, 0.65, 8), kitMat); torso.position.y = 1.15; group.add(torso); group.userData.torso = torso;
+
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), skinMat); head.position.y = 1.7; group.userData.headRef = head;
+            const eyeMat = new THREE.MeshBasicMaterial({color: 0x000000});
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.04), eyeMat); eyeR.position.set(0.12, 0.05, 0.32); head.add(eyeR);
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.04), eyeMat); eyeL.position.set(-0.12, 0.05, 0.32); head.add(eyeL);
+            const smile = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.015, 8, 16, Math.PI), eyeMat); smile.rotation.x = Math.PI; smile.position.set(0, -0.05, 0.34); head.add(smile);
+
             if (role === 'BAT') {
-                const batGroup = new THREE.Group(); const blade = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xccaa88 })); blade.position.y = -0.4;
+                const helmetMat = new THREE.MeshStandardMaterial({color: color, flatShading: true, roughness: 0.2});
+                const helmetBase = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 16, 0, Math.PI*2, 0, Math.PI/1.6), helmetMat); helmetBase.position.y = 0.05;
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.3), helmetMat); visor.position.set(0, 0.1, 0.3);
+                const grill = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.2, 0.3), new THREE.MeshBasicMaterial({color: 0xcccccc, wireframe: true})); grill.position.set(0, -0.1, 0.25);
+                head.add(helmetBase); head.add(visor); head.add(grill);
+            } else {
+                const capGroup = new THREE.Group(); 
+                const capBase = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 16, 0, Math.PI*2, 0, Math.PI/2), kitMat);
+                const capBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.05, 16, 1, false, 0, Math.PI), kitMat); capBrim.position.set(0, -0.05, 0.15); capBrim.scale.set(1, 1, 1.2);
+                capGroup.add(capBase); capGroup.add(capBrim); capGroup.position.y = 0.05; head.add(capGroup);
+            }
+            group.add(head);
+
+            const shoulders = new THREE.Group(); shoulders.position.y = 1.4; group.add(shoulders); group.userData.shoulders = shoulders;
+            const armGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.6, 8); armGeo.translate(0, -0.3, 0); 
+            const armL = new THREE.Mesh(armGeo, kitMat); armL.position.set(-0.4, 0, 0);
+            const handL = new THREE.Mesh(new THREE.SphereGeometry(0.1), skinMat); handL.position.set(0, -0.6, 0); armL.add(handL);
+            const armR = new THREE.Mesh(armGeo, kitMat); armR.position.set(0.4, 0, 0);
+            const handR = new THREE.Mesh(new THREE.SphereGeometry(0.1), skinMat); handR.position.set(0, -0.6, 0); armR.add(handR);
+            shoulders.add(armL); shoulders.add(armR); group.userData.arms = [armL, armR];
+
+            group.userData.isMoving = false; group.userData.role = role;
+
+            if (role === 'BAT') {
+                const batGroup = new THREE.Group(); 
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshStandardMaterial({ color: 0xccaa88, flatShading: true })); blade.position.y = -0.4;
                 const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3), new THREE.MeshStandardMaterial({ color: 0x000000 })); handle.position.y = 0.15;
-                batGroup.add(blade); batGroup.add(handle); shoulders.add(batGroup);
+                batGroup.add(blade); batGroup.add(handle); shoulders.add(batGroup); group.userData.bat = batGroup;
                 group.userData.isLeft = Math.random() > 0.5;
-                if(group.userData.isLeft) { batGroup.position.set(-0.2, -0.4, 0.4); batGroup.rotation.x = -0.3; shoulders.rotation.y = 1.5; head.rotation.y = -1.5; } 
-                else { batGroup.position.set(0.2, -0.4, 0.4); batGroup.rotation.x = -0.3; shoulders.rotation.y = -1.5; head.rotation.y = 1.5; }
-                group.userData.bat = batGroup;
-            } else if (role === 'BOWL') { shoulders.rotation.x = 0; group.userData.runStart = -25; } else if (role === 'KEEP') { shoulders.rotation.x = -0.5; group.position.y -= 0.15; }
+            } else if (role === 'BOWL') { group.userData.runStart = -25; } 
+            else if (role === 'KEEP') { shoulders.rotation.x = -0.5; group.position.y -= 0.15; }
+            
             allPlayers.push(group); return group;
         }
 
-        function initStats() {
-            batterStats = ROSTERS[battingTeamStr].map(name => ({ name, runs: 0, balls: 0, out: false }));
-            strikerIdx = 0; nonStrikerIdx = 1; nextBatterIdx = 2;
+        function setBattingStance(player, isStriker) {
+            const bat = player.userData.bat; const arms = player.userData.arms;
+            if (isStriker) {
+                if(player.userData.isLeft) {
+                    bat.position.set(-0.2, -0.5, 0.4); bat.rotation.set(-0.3, 0, 0);
+                    player.userData.shoulders.rotation.set(0, 1.5, 0); player.userData.headRef.rotation.y = -1.5;
+                    arms[0].rotation.set(-0.5, 0, 0.3); arms[1].rotation.set(-0.5, 0, -0.3);
+                } else {
+                    bat.position.set(0.2, -0.5, 0.4); bat.rotation.set(-0.3, 0, 0);
+                    player.userData.shoulders.rotation.set(0, -1.5, 0); player.userData.headRef.rotation.y = 1.5;
+                    arms[0].rotation.set(-0.5, 0, 0.3); arms[1].rotation.set(-0.5, 0, -0.3);
+                }
+            } else {
+                bat.position.set(0.3, -0.8, 0); bat.rotation.set(Math.PI/2, 0, 0); 
+                player.userData.shoulders.rotation.set(0, 0, 0); player.userData.headRef.rotation.y = 0;
+                arms[0].rotation.set(0, 0, 0.1); arms[1].rotation.set(0, 0, -0.1);
+            }
         }
+
+        function initStats() { batterStats = ROSTERS[battingTeamStr].map(name => ({ name, runs: 0, balls: 0, out: false })); strikerIdx = 0; nonStrikerIdx = 1; nextBatterIdx = 2; }
 
         function processTossAndStart(t1, t2, matchInfo) {
             const mc = document.getElementById('menu-container'); mc.classList.add('hidden');
-            liveMatchStats = { runs: {}, balls: {}, wickets: {}, overs: {}, runsConceded: {} };
-            hasDisplayed50 = {}; // reset milestone tracker for match
-            if(!wc.playerStats) initPlayerStats(); // Fallback ensure stats object exists
-            
-            currentMatchTitleStr = `${t1.substring(0,3).toUpperCase()} vs ${t2.substring(0,3).toUpperCase()}`;
-            document.getElementById('hud-match-title').innerText = currentMatchTitleStr;
+            liveMatchStats = { runs: {}, balls: {}, wickets: {}, overs: {}, runsConceded: {} }; hasDisplayed50 = {}; 
+            if(!wc.playerStats || !wc.playerStats[ROSTERS['Nepal'][0]]) initPlayerStats(); 
+            currentMatchTitleStr = `${t1.substring(0,3).toUpperCase()} vs ${t2.substring(0,3).toUpperCase()}`; document.getElementById('hud-match-title').innerText = currentMatchTitleStr;
 
-            let tossInfoStr = "";
-            if (matchInfo) {
-                if (matchInfo.phase === 'QUICK MATCH') { tossInfoStr = `QUICK MATCH`; } 
-                else { tossInfoStr = `MATCH ${matchInfo.id + 1} | ${matchInfo.phase} ${matchInfo.group ? '('+matchInfo.group+')' : ''}`; }
-            }
+            let tossInfoStr = ""; if (matchInfo) { if (matchInfo.phase === 'QUICK MATCH') tossInfoStr = `QUICK MATCH`; else tossInfoStr = `MATCH ${matchInfo.id + 1} | ${matchInfo.phase} ${matchInfo.group ? '('+matchInfo.group+')' : ''}`; }
             document.getElementById('toss-match-info').innerHTML = `<b>${t1.toUpperCase()} vs ${t2.toUpperCase()}</b><br><span style="color:#ffd700; font-size:14px">${tossInfoStr}</span>`;
             
             let tossWinner = Math.random() > 0.5 ? t1 : t2; let tossLoser = tossWinner === t1 ? t2 : t1; let choice = Math.random() > 0.5 ? 'BAT' : 'BOWL';
             if (choice === 'BAT') { battingTeamStr = tossWinner; bowlingTeamStr = tossLoser; } else { battingTeamStr = tossLoser; bowlingTeamStr = tossWinner; }
             
-            const tb = document.getElementById('toss-box');
-            document.getElementById('toss-text').innerText = `${tossWinner} won the toss and elected to ${choice} first.`;
-            tb.style.display = 'block'; gsap.fromTo(tb, {scale: 0.5, opacity: 0}, {scale: 1, opacity: 1, duration: 0.5});
+            const tb = document.getElementById('toss-box'); document.getElementById('toss-text').innerText = `${tossWinner} won the toss and elected to ${choice} first.`;
+            tb.style.display = 'block'; window.gsap.fromTo(tb, {scale: 0.5, opacity: 0}, {scale: 1, opacity: 1, duration: 0.5});
             setTimeout(() => { tb.style.display = 'none'; innings = 1; startGame(); }, 4000);
         }
 
         function startGame() {
             clearTimeout(deliveryTimer); score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; 
             document.getElementById('commentary-box').innerText = "Match begins! Let's play.";
-            if (innings === 1) { target = 0; firstInningsScore = 0; firstInningsOversFaced = 0; }
-            isBallInPlay = false; initStats();
+            if (innings === 1) { target = 0; firstInningsScore = 0; firstInningsOversFaced = 0; } isBallInPlay = false; initStats();
             
             bowlersUsed = []; let initialBIdx = 5; bowlersUsed.push(initialBIdx); currentBowlerName = ROSTERS[bowlingTeamStr][initialBIdx];
-            allPlayers.forEach(p => { gsap.killTweensOf(p.position); gsap.killTweensOf(p.userData.shoulders.rotation); scene.remove(p); }); allPlayers = []; fielders = [];
+            allPlayers.forEach(p => { window.gsap.killTweensOf(p.position); window.gsap.killTweensOf(p.userData.shoulders.rotation); scene.remove(p); }); allPlayers = []; fielders = [];
 
             bowler = createPlayer(bowlingTeamStr, 'BOWL'); scene.add(bowler);
-            strikerMesh = createPlayer(battingTeamStr, 'BAT'); strikerMesh.position.set(0, 0, 10); scene.add(strikerMesh);
-            nonStrikerMesh = createPlayer(battingTeamStr, 'BAT'); nonStrikerMesh.position.set(1.5, 0, -10); nonStrikerMesh.rotation.y = Math.PI; scene.add(nonStrikerMesh);
+            
+            strikerMesh = createPlayer(battingTeamStr, 'BAT'); strikerMesh.position.set(0, 0, 8.5); scene.add(strikerMesh); setBattingStance(strikerMesh, true);
+            nonStrikerMesh = createPlayer(battingTeamStr, 'BAT'); nonStrikerMesh.position.set(-1.5, 0, -8.5); nonStrikerMesh.rotation.y = Math.PI; scene.add(nonStrikerMesh); setBattingStance(nonStrikerMesh, false);
+            
             keeper = createPlayer(bowlingTeamStr, 'KEEP'); keeper.position.set(0, 0, 13); scene.add(keeper);
 
-            const angles = [0.8, 2.3, 3.9, 5.5]; 
-            angles.forEach(ang => { const f = createPlayer(bowlingTeamStr, 'FIELD'); f.position.set(Math.cos(ang)*(BOUNDARY_RADIUS-10), 0, Math.sin(ang)*(BOUNDARY_RADIUS-10)); f.lookAt(0,0,0); scene.add(f); fielders.push(f); });
+            const angles = [0.6, 1.8, 3.5, 4.8, 5.8]; 
+            angles.forEach(ang => { 
+                const f = createPlayer(bowlingTeamStr, 'FIELD'); 
+                f.position.set(Math.cos(ang)*(BOUNDARY_RADIUS-15), 0, Math.sin(ang)*(BOUNDARY_RADIUS-15)); 
+                f.userData.origPos = {x: f.position.x, z: f.position.z};
+                f.lookAt(0,0,0); scene.add(f); fielders.push(f); 
+            });
 
-            updateScoreboard(); showStatus(innings === 1 ? "MATCH START" : "2ND INNINGS");
-            resetCameraStatic(); 
-
-            // Show initial broadcast graphics
+            updateScoreboard(); showStatus(innings === 1 ? "MATCH START" : "2ND INNINGS"); resetCameraStatic(); 
             setTimeout(() => { showBroadcastGraphic('BAT', batterStats[strikerIdx].name); }, 1500);
             setTimeout(() => { showBroadcastGraphic('BOWL', currentBowlerName); }, 5000);
-
-            deliveryTimer = setTimeout(deliverBall, 9000); // delay start to let graphics show
+            deliveryTimer = setTimeout(deliverBall, 9000); 
         }
 
         function deliverBall() {
             if(isBallInPlay || wickets >= MAX_WICKETS || overs >= TOTAL_OVERS) return;
-            isBallInPlay = true; camState = 'RUNUP'; bowler.position.z = bowler.userData.runStart; bowler.position.x = 0.6; 
-            const tl = gsap.timeline({ onComplete: releaseBall });
-            tl.to(bowler.position, { z: -10, duration: 1.2, ease: 'power1.in', onUpdate: () => bowler.userData.isMoving = true });
-            tl.to(bowler.position, { z: -8.5, y: 1, duration: 0.15, onStart: () => { bowler.userData.isMoving = false; bowler.userData.shoulders.rotation.x = 3.14; } });
-            tl.to(bowler.position, { z: -8, y: 0, duration: 0.1 });
+            isBallInPlay = true; camState = 'RUNUP'; 
+            
+            bowler.position.z = bowler.userData.runStart; bowler.position.x = 0.6; bowler.lookAt(0,0,10);
+            const tl = window.gsap.timeline({ onComplete: releaseBall });
+            tl.to(bowler.position, { z: -10.5, duration: 1.2, ease: 'power1.in', onUpdate: () => bowler.userData.isMoving = true });
+            tl.to(bowler.position, { z: -9.2, y: 1.2, duration: 0.15, onStart: () => { 
+                bowler.userData.isMoving = false; window.gsap.to(bowler.userData.shoulders.rotation, { x: Math.PI * 2, duration: 0.2, ease: "none" }); 
+            }});
+            tl.to(bowler.position, { z: -8.8, y: 0, duration: 0.1 });
         }
 
         function releaseBall() {
-            camState = 'STATIC'; bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; ball.position.set(0.5, 2.2, -8.5); playGameSound('bowl');
+            bowler.userData.shoulders.rotation.x = 0; ball.visible = true; ballShadow.visible = true; 
+            ball.position.set(0.6, 2.2, -8.8); playGameSound('bowl');
+            
             let targetX = (Math.random()-0.5)*1.5; let isWide = false;
             if (Math.random() < 0.10) { isWide = true; targetX = strikerMesh.userData.isLeft ? (Math.random()>0.5 ? 2.5 : -2.5) : (Math.random()>0.5 ? 2.5 : -2.5); }
-            gsap.to(ball.position, { z: 10, x: targetX, duration: 0.5, ease: 'linear' });
-            gsap.to(ball.position, { y: 0, duration: 0.25, ease: 'power1.in' }).then(() => gsap.to(ball.position, { y: 1, duration: 0.25, ease: 'power1.out' }));
+            window.gsap.to(ball.position, { z: 10, x: targetX, duration: 0.5, ease: 'linear' });
+            window.gsap.to(ball.position, { y: 0, duration: 0.25, ease: 'power1.in' }).then(() => window.gsap.to(ball.position, { y: 1, duration: 0.25, ease: 'power1.out' }));
             setTimeout(() => { handleShot(targetX, isWide); }, 500);
         }
 
-        function celebrateWicket() { playGameSound('cheer'); [bowler, keeper].forEach(p => { if(!p) return; gsap.to(p.position, { y: 1.5, duration: 0.3, yoyo: true, repeat: 5 }); gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.3, yoyo: true, repeat: 5 }); }); }
-        function celebrateWin(winner) { playGameSound('cheer'); let team = winner === battingTeamStr ? [strikerMesh, nonStrikerMesh] : [bowler, keeper, ...fielders]; team.forEach(p => { if(!p) return; gsap.to(p.position, { y: 1.5, duration: 0.4, yoyo: true, repeat: -1 }); gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.4, yoyo: true, repeat: -1 }); }); }
+        function celebrateWicket() { playGameSound('cheer'); [bowler, keeper].forEach(p => { if(!p) return; window.gsap.to(p.position, { y: 1.5, duration: 0.3, yoyo: true, repeat: 5 }); window.gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.3, yoyo: true, repeat: 5 }); }); }
+        function celebrateWin(winner) { playGameSound('cheer'); let team = winner === battingTeamStr ? [strikerMesh, nonStrikerMesh] : [bowler, keeper, ...fielders]; team.forEach(p => { if(!p) return; window.gsap.to(p.position, { y: 1.5, duration: 0.4, yoyo: true, repeat: -1 }); window.gsap.to(p.userData.shoulders.rotation, { x: 3.14, duration: 0.4, yoyo: true, repeat: -1 }); }); }
 
         function handleShot(bx, isWide) {
-            camState = 'FOLLOW';
             if (isWide) { 
-                showStatus("WIDE"); score += 1; liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + 1;
-                gsap.to(ball.position, { z: 15, x: bx*1.5, y: 0, duration: 0.5 }); matchBallLog.push('WD'); setCommentary('WD'); updateScoreboard(); setTimeout(() => finishDelivery(false, 0, false), 1500); return; 
+                camState = 'FOLLOW'; score += 1; liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + 1;
+                let bdx = bx * 1.5;
+                window.gsap.to(ball.position, { z: 13, x: bdx, y: 0.5, duration: 0.5 }); 
+                window.gsap.to(keeper.position, { x: bdx, duration: 0.4, onUpdate: () => keeper.userData.isMoving = true, onComplete: () => {
+                    keeper.userData.isMoving = false;
+                    window.gsap.to(keeper.userData.arms[0].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
+                    window.gsap.to(keeper.userData.arms[1].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
+                    showStatus("WIDE"); matchBallLog.push('WD'); setCommentary('WD'); updateScoreboard(); 
+                    
+                    setTimeout(() => {
+                        keeper.lookAt(bowler.position.x, 0, bowler.position.z);
+                        window.gsap.to(keeper.userData.arms[1].rotation, { x: -3.14, duration: 0.2, yoyo: true, repeat: 1 }); 
+                        window.gsap.to(ball.position, { x: bowler.position.x, z: bowler.position.z, y: 1, duration: 1.2, ease: 'power1.out' }); 
+                    }, 500);
+                    setTimeout(() => finishDelivery(false, 0, false), 2200); 
+                }});
+                return; 
             }
 
-            const bat = strikerMesh.userData.bat; gsap.to(bat.rotation, { x: -2.5, duration: 0.1, yoyo: true, repeat: 1 }); batterStats[strikerIdx].balls++;
-            let bName = batterStats[strikerIdx].name; liveMatchStats.balls[bName] = (liveMatchStats.balls[bName] || 0) + 1;
+            setTimeout(() => { camState = 'FOLLOW'; }, 400); 
+
+            const bat = strikerMesh.userData.bat; const shoulders = strikerMesh.userData.shoulders; const isLeft = strikerMesh.userData.isLeft;
+            window.gsap.to(shoulders.rotation, { x: -1.8, y: isLeft ? 1.5 : -1.5, z: isLeft ? 0.5 : -0.5, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out" });
+            window.gsap.to(bat.rotation, { x: -3.5, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out" });
+            
+            batterStats[strikerIdx].balls++; let bName = batterStats[strikerIdx].name; liveMatchStats.balls[bName] = (liveMatchStats.balls[bName] || 0) + 1;
 
             const rand = Math.random(); let runs = 0; let shotType = '';
             if(rand < 0.05) shotType = 'BOWLED'; else if(rand < 0.15) shotType = 'CAUGHT'; else if(rand < 0.25) { shotType = 'DOT'; runs = 0; } 
             else if(rand < 0.50) { shotType = 'RUNS'; runs = Math.random()>0.5?1:2; } else if(rand < 0.75) { shotType = 'FOUR'; runs = 4; } else { shotType = 'SIX'; runs = 6; } 
-            const angle = Math.random() * Math.PI * 2; 
+            
+            let angle = Math.random() * Math.PI * 2;
+            let distMult = shotType === 'SIX' ? (BOUNDARY_RADIUS+20) : (shotType === 'FOUR' ? BOUNDARY_RADIUS+25 : (runs===2?45:25));
+            let destX = Math.sin(angle) * distMult; let destZ = Math.cos(angle) * distMult + 10;
+            
+            if ((shotType === 'SIX' || shotType === 'FOUR') && destZ > 15 && Math.abs(destX) < 30) {
+                let newAng = Math.random() > 0.5 ? (Math.PI * 0.75) : (Math.PI * 1.25);
+                destX = Math.sin(newAng) * distMult; destZ = Math.cos(newAng) * distMult + 10;
+            }
+
+            let closestF = fielders[0], minDist = 999;
+            fielders.forEach(f => { const d = Math.hypot(f.position.x - destX, f.position.z - destZ); if(d < minDist) { minDist = d; closestF = f; } });
+
+            let isGreatSave = false;
+            let ballTargetX = destX; let ballTargetZ = destZ;
+            let isLoftedFour = (shotType === 'FOUR' && Math.random() > 0.5);
+
+            if (shotType === 'FOUR' && minDist < 45 && Math.random() < 0.5) {
+                shotType = 'RUNS'; runs = Math.random() > 0.5 ? 3 : 2;
+                isGreatSave = true;
+                let clampedBall = clampToBoundary(destX, destZ, 2);
+                ballTargetX = clampedBall.x; 
+                ballTargetZ = clampedBall.z;
+            }
+
+            if (['RUNS', 'FOUR', 'SIX', 'CAUGHT'].includes(shotType)) {
+                strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true; 
+                setBattingStance(strikerMesh, false); setBattingStance(nonStrikerMesh, false);
+                let immediateRunDur = (shotType === 'RUNS') ? ((runs >= 2 ? 3.0 : 1.8) / (runs >= 2 ? 2 : 1) - 0.1) : 1.8;
+                window.gsap.to(strikerMesh.position, { z: -8.5, duration: immediateRunDur, yoyo: (shotType === 'RUNS' && runs >= 2), repeat: (shotType === 'RUNS' && runs >= 2) ? 1 : 0, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
+                window.gsap.to(nonStrikerMesh.position, { z: 8.5, duration: immediateRunDur, yoyo: (shotType === 'RUNS' && runs >= 2), repeat: (shotType === 'RUNS' && runs >= 2) ? 1 : 0, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
+            }
 
             if(shotType === 'BOWLED') {
                 playGameSound('hit'); wickets++; matchBallLog.push('W'); showStatus("BOWLED!"); setCommentary('BOWLED');
-                const s = stumpsBatting.children[1]; gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); gsap.to(s.rotation, { x: 3, duration: 0.5 });
-                gsap.to(ball.position, { z: 14, y: 0.5, duration: 0.3 }); celebrateWicket(); setTimeout(() => finishDelivery(true, 0, true), 2500);
-            } else if(shotType === 'CAUGHT') {
-                playGameSound('hit'); const f = fielders[Math.floor(Math.random() * fielders.length)];
-                gsap.to(ball.position, { x: f.position.x, z: f.position.z, duration: 1.5, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 15; }, onComplete: () => { 
-                    wickets++; matchBallLog.push('W'); showStatus("CATCH OUT!"); setCommentary('CAUGHT'); celebrateWicket(); setTimeout(() => finishDelivery(true, 0, true), 2500); 
+                const s = stumpsBatting.children[1]; window.gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); window.gsap.to(s.rotation, { x: 3, duration: 0.5 });
+                window.gsap.to(ball.position, { z: 14, y: 0.5, duration: 0.3 }); celebrateWicket(); setTimeout(() => finishDelivery(true, 0, true), 2500);
+            } 
+            else if(shotType === 'CAUGHT') {
+                playGameSound('hit'); const isDrop = Math.random() < 0.15; 
+                
+                let catchDist = BOUNDARY_RADIUS - (Math.random() * 5 + 2);
+                let rawCatchX = Math.sin(angle) * catchDist; 
+                let rawCatchZ = Math.cos(angle) * catchDist + 10;
+                
+                let clampedCatch = clampToBoundary(rawCatchX, rawCatchZ, 4);
+                let catchX = clampedCatch.x; let catchZ = clampedCatch.z;
+
+                fielders.forEach(f => { const d = Math.hypot(f.position.x - catchX, f.position.z - catchZ); if(d < minDist) { minDist = d; closestF = f; } });
+
+                closestF.lookAt(catchX, 0, catchZ);
+                window.gsap.to(closestF.position, { x: catchX, z: catchZ, duration: 2.0, ease: 'linear', onUpdate: () => closestF.userData.isMoving = true, onComplete: () => closestF.userData.isMoving = false });
+                
+                window.gsap.to(closestF.userData.arms[0].rotation, { x: -2.5, duration: 0.3, delay: 1.6, yoyo: true, repeat: 1 });
+                window.gsap.to(closestF.userData.arms[1].rotation, { x: -2.5, duration: 0.3, delay: 1.6, yoyo: true, repeat: 1 });
+
+                window.gsap.to(ball.position, { x: catchX, z: catchZ, duration: 2.0, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 20; }, onComplete: () => { 
+                    if (isDrop) {
+                        showStatus("DROPPED!"); setCommentary('0');
+                        window.gsap.to(ball.position, {x: catchX + (Math.random()*8-4), z: catchZ + (Math.random()*8-4), y: 0, duration: 0.8});
+                        
+                        let runsGot = Math.random() < 0.5 ? 1 : 2; 
+                        let isRunOutOnDrop = runsGot === 2 && Math.random() < 0.3; 
+                        
+                        if (runsGot === 2 || isRunOutOnDrop) {
+                            strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true;
+                            
+                            if (isRunOutOnDrop) {
+                                let tlS = window.gsap.timeline();
+                                tlS.to(strikerMesh.position, { z: -8.5, duration: 0.8, ease: 'linear' });
+                                tlS.to(strikerMesh.position, { z: 8.5, duration: 2.5, ease: 'linear' }); 
+                                
+                                let tlNS = window.gsap.timeline();
+                                tlNS.to(nonStrikerMesh.position, { z: 8.5, duration: 0.8, ease: 'linear' });
+                                tlNS.to(nonStrikerMesh.position, { z: -8.5, duration: 2.5, ease: 'linear' });
+                            } else {
+                                window.gsap.to(strikerMesh.position, { z: 8.5, duration: 1.8, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
+                                window.gsap.to(nonStrikerMesh.position, { z: -8.5, duration: 1.8, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
+                            }
+                        }
+
+                        setTimeout(() => {
+                            closestF.lookAt(0, 0, 10);
+                            if (isRunOutOnDrop) {
+                                window.gsap.to(ball.position, { x: 0, z: 10, y: 0.5, duration: 1.2, onComplete: () => { 
+                                    window.gsap.killTweensOf(strikerMesh.position); window.gsap.killTweensOf(nonStrikerMesh.position);
+                                    strikerMesh.userData.isMoving = false; nonStrikerMesh.userData.isMoving = false;
+                                    wickets++; matchBallLog.push('W'); showStatus("RUN OUT!"); setCommentary('RO'); celebrateWicket(); 
+                                    const s = stumpsBatting.children[1]; window.gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); window.gsap.to(s.rotation, { x: 3, duration: 0.5 });
+                                    score += 1; 
+                                    setTimeout(() => finishDelivery(true, 1, true), 2000);
+                                }});
+                            } else {
+                                window.gsap.to(ball.position, { x: 0, z: 13, y: 1, duration: 1.4 }); 
+                                score += runsGot; matchBallLog.push(runsGot.toString());
+                                setTimeout(() => finishDelivery(true, runsGot, false), 1600);
+                            }
+                        }, 800);
+
+                    } else { 
+                        wickets++; matchBallLog.push('W'); showStatus("CATCH OUT!"); setCommentary('CAUGHT'); celebrateWicket(); 
+                        setTimeout(() => finishDelivery(true, 0, true), 2500); 
+                    }
                 } });
-            } else if (shotType === 'DOT') {
-                playGameSound('hit'); setCommentary('0'); gsap.to(ball.position, { z: 15, x: bx + Math.random(), y:0, duration: 0.5 }); matchBallLog.push('0'); updateScoreboard(); setTimeout(() => finishDelivery(true, 0, false), 1500);
-            } else if (shotType === 'FOUR') {
-                playGameSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+8); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+8) + 10;
-                gsap.to(ball.position, { x: destX, z: destZ, y: 0, duration: 1.8, ease: 'power1.out', onComplete: () => {
-                    playGameSound('cheer'); showStatus("FOUR!"); setCommentary('4'); score += 4; matchBallLog.push('4'); updateScoreboard(); setTimeout(() => finishDelivery(true, 4, false), 2500);
+            } 
+            else if (shotType === 'DOT') {
+                playGameSound('hit'); setCommentary('0'); 
+                let bdx = bx + (Math.random()-0.5)*0.5;
+                window.gsap.to(ball.position, { z: 13, x: bdx, y: 0.5, duration: 0.5 }); 
+                window.gsap.to(keeper.position, { x: bdx, duration: 0.4, onUpdate: () => keeper.userData.isMoving = true, onComplete: () => {
+                    keeper.userData.isMoving = false;
+                    window.gsap.to(keeper.userData.arms[0].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
+                    window.gsap.to(keeper.userData.arms[1].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
+                    matchBallLog.push('0'); updateScoreboard(); 
+                    
+                    setTimeout(() => {
+                        keeper.lookAt(bowler.position.x, 0, bowler.position.z);
+                        window.gsap.to(keeper.userData.arms[1].rotation, { x: -3.14, duration: 0.2, yoyo: true, repeat: 1 }); 
+                        window.gsap.to(ball.position, { x: bowler.position.x, z: bowler.position.z, y: 1, duration: 1.2, ease: 'power1.out' }); 
+                    }, 500);
+                    setTimeout(() => finishDelivery(true, 0, false), 2000); 
                 }});
-            } else if (shotType === 'SIX') {
-                playGameSound('hit'); const destX = Math.sin(angle) * (BOUNDARY_RADIUS+20); const destZ = Math.cos(angle) * (BOUNDARY_RADIUS+20) + 10;
-                gsap.to(ball.position, { x: destX, z: destZ, duration: 2, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 25; }, onComplete: () => {
-                    playGameSound('cheer'); showStatus("SIX!"); setCommentary('6'); score += 6; matchBallLog.push('6'); updateScoreboard(); setTimeout(() => finishDelivery(true, 6, false), 3000);
-                }}); gsap.to(ball.position, { y: 2, duration: 0.4, delay: 2, yoyo: true, repeat: 1 }); 
-            } else if (shotType === 'RUNS') {
-                playGameSound('hit'); const destX = Math.sin(angle) * (runs===2?45:25); const destZ = Math.cos(angle) * (runs===2?45:25) + 10;
-                const timeToChase = runs === 2 ? 3.0 : 1.8; 
-                gsap.to(ball.position, { x: destX, z: destZ, y: 0, duration: timeToChase, ease: 'power1.out' });
-                strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true; const runDur = timeToChase / (runs===2?2:1) - 0.1; 
-                gsap.to(strikerMesh.position, { z: -10, duration: runDur, yoyo: runs===2, repeat: runs===2?1:0, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
-                gsap.to(nonStrikerMesh.position, { z: 10, duration: runDur, yoyo: runs===2, repeat: runs===2?1:0, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
-                let closestF = fielders[0], minDist = 999;
-                fielders.forEach(f => { const d = Math.hypot(f.position.x - destX, f.position.z - destZ); if(d < minDist) { minDist = d; closestF = f; } });
-                closestF.lookAt(destX, 0, destZ);
-                gsap.to(closestF.position, { x: destX, z: destZ, duration: timeToChase, onUpdate: ()=>closestF.userData.isMoving=true, onComplete: () => {
-                    closestF.userData.isMoving = false; closestF.lookAt(0, 0, 10);
-                    if(Math.random() < 0.10) { wickets++; matchBallLog.push('W'); setCommentary('RO'); showStatus("RUN OUT!"); gsap.to(ball.position, { x: 0, z: 10, y: 0.5, duration: 0.5 }); celebrateWicket(); setTimeout(() => finishDelivery(true, 0, true), 1500); } 
-                    else { score += runs; matchBallLog.push(runs.toString()); setCommentary(runs.toString()); gsap.to(ball.position, { x: 0, z: 13, y: 1, duration: 0.6 }); setTimeout(() => finishDelivery(true, runs, false), 1500); }
+            } 
+            else if (shotType === 'FOUR') {
+                playGameSound('hit');
+                const timeToChase = 2.2;
+                
+                closestF.lookAt(ballTargetX, 0, ballTargetZ); 
+                window.gsap.to(closestF.position, { x: ballTargetX*0.9, z: ballTargetZ*0.9, duration: timeToChase, onUpdate: () => closestF.userData.isMoving = true, onComplete: () => {
+                    closestF.userData.isMoving = false;
                 }});
+                
+                if (isLoftedFour) {
+                    window.gsap.to(ball.position, { x: ballTargetX, z: ballTargetZ, duration: timeToChase, ease: 'linear', onUpdate: function() { 
+                        const p = this.progress(); 
+                        if (p < 0.6) { ball.position.y = Math.sin((p / 0.6) * Math.PI) * 12; } 
+                        else if (p < 0.85) { let bp = (p - 0.6) / 0.25; ball.position.y = Math.abs(Math.sin(bp * Math.PI)) * 4 * (1 - bp); }
+                        else { let bp = (p - 0.85) / 0.15; ball.position.y = Math.abs(Math.sin(bp * Math.PI)) * 1.5 * (1 - bp); }
+                    }, onComplete: () => { 
+                        playGameSound('cheer'); showStatus("FOUR!"); setCommentary('4'); score += 4; matchBallLog.push('4'); updateScoreboard(); setTimeout(() => finishDelivery(true, 4, false), 2500); 
+                    }});
+                } else {
+                    window.gsap.to(ball.position, { x: ballTargetX, z: ballTargetZ, duration: timeToChase, ease: 'power1.out', onUpdate: function() { ball.position.y = 0.12; }, onComplete: () => {
+                        playGameSound('cheer'); showStatus("FOUR!"); setCommentary('4'); score += 4; matchBallLog.push('4'); updateScoreboard(); setTimeout(() => finishDelivery(true, 4, false), 2500); 
+                    }});
+                }
+            } 
+            else if (shotType === 'SIX') {
+                playGameSound('hit');
+                closestF.lookAt(destX, 0, destZ); window.gsap.to(closestF.position, { x: destX*0.5, z: destZ*0.5, duration: 2, onUpdate: () => closestF.userData.isMoving = true, onComplete: () => closestF.userData.isMoving = false });
+                window.gsap.to(ball.position, { x: destX, z: destZ, duration: 2, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 25; }, onComplete: () => { playGameSound('cheer'); showStatus("SIX!"); setCommentary('6'); score += 6; matchBallLog.push('6'); updateScoreboard(); setTimeout(() => finishDelivery(true, 6, false), 3000); }}); window.gsap.to(ball.position, { y: 2, duration: 0.4, delay: 2, yoyo: true, repeat: 1 }); 
+            } 
+            else if (shotType === 'RUNS') {
+                playGameSound('hit'); 
+                
+                let isRunOut = false;
+                if (!isGreatSave && Math.random() < 0.15) { isRunOut = true; runs = 2; }
+
+                const timeToChase = isGreatSave ? 1.6 : (isRunOut ? 2.0 : (runs >= 2 ? 3.0 : 1.8));
+                
+                // ====================================================
+                // FIX: PERFECT RUN-OUT TIMING (Batsman Freezes mid-pitch)
+                // ====================================================
+                const runDur = isRunOut ? (timeToChase + 1.2) : (timeToChase / (runs >= 2 ? 2 : 1) - 0.1);
+
+                window.gsap.to(ball.position, { x: ballTargetX, z: ballTargetZ, y: 0, duration: timeToChase, ease: 'power1.out' }); 
+                
+                strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true; 
+                setBattingStance(strikerMesh, false); setBattingStance(nonStrikerMesh, false);
+                
+                if (isRunOut) {
+                    let leg1Time = timeToChase * 0.4;
+                    let leg2Time = timeToChase * 1.5; 
+                    
+                    let tlStriker = window.gsap.timeline();
+                    tlStriker.to(strikerMesh.position, { z: -8.5, duration: leg1Time, ease: 'linear' });
+                    tlStriker.to(strikerMesh.position, { z: 8.5, duration: leg2Time, ease: 'linear' });
+                    
+                    let tlNonStriker = window.gsap.timeline();
+                    tlNonStriker.to(nonStrikerMesh.position, { z: 8.5, duration: leg1Time, ease: 'linear' });
+                    tlNonStriker.to(nonStrikerMesh.position, { z: -8.5, duration: leg2Time, ease: 'linear' });
+                } else {
+                    window.gsap.to(strikerMesh.position, { z: -8.5, duration: runDur, yoyo: runs>=2, repeat: runs>=2?1:0, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
+                    window.gsap.to(nonStrikerMesh.position, { z: 8.5, duration: runDur, yoyo: runs>=2, repeat: runs>=2?1:0, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
+                }
+                
+                closestF.lookAt(ballTargetX, 0, ballTargetZ);
+                let tlFielder = window.gsap.timeline();
+                if (isGreatSave) {
+                    let diveStartX = closestF.position.x + (ballTargetX - closestF.position.x) * 0.7;
+                    let diveStartZ = closestF.position.z + (ballTargetZ - closestF.position.z) * 0.7;
+                    
+                    tlFielder.to(closestF.position, { x: diveStartX, z: diveStartZ, duration: timeToChase * 0.7, ease: 'none', onStart: () => closestF.userData.isMoving = true });
+                    tlFielder.to(closestF.rotation, { x: -Math.PI/2.5, duration: 0.2 }, "+=0");
+                    tlFielder.to(closestF.position, { 
+                        x: ballTargetX, z: ballTargetZ, y: 0.2, 
+                        duration: timeToChase * 0.3, 
+                        ease: 'power2.out',
+                        onComplete: () => {
+                            showStatus("GREAT SAVE!"); closestF.userData.isMoving = false;
+                            window.gsap.to(closestF.rotation, {x: 0, duration: 0.4, delay: 0.5});
+                            window.gsap.to(closestF.position, {y: 0, duration: 0.4, delay: 0.5});
+                        }
+                    }, "-=0.2");
+                } else {
+                    tlFielder.to(closestF.position, { x: ballTargetX, z: ballTargetZ, duration: timeToChase, onUpdate: ()=>closestF.userData.isMoving=true, onComplete: () => { closestF.userData.isMoving = false; closestF.lookAt(0, 0, 10); }});
+                }
+
+                window.gsap.to(ball.position, { x: ballTargetX, z: ballTargetZ, y: 0.12, duration: timeToChase, ease: 'power2.out', onComplete: () => {
+                    if(isRunOut) { 
+                        window.gsap.to(ball.position, { x: 0, z: 10, y: 0.5, duration: 0.8, delay: isGreatSave ? 0.6 : 0, onComplete: () => {
+                            
+                            window.gsap.killTweensOf(strikerMesh.position); window.gsap.killTweensOf(nonStrikerMesh.position);
+                            strikerMesh.userData.isMoving = false; nonStrikerMesh.userData.isMoving = false;
+                            
+                            wickets++; matchBallLog.push('W'); setCommentary('RO'); 
+                            showStatus("RUN OUT!"); celebrateWicket(); 
+                            
+                            const s = stumpsBatting.children[1]; window.gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); window.gsap.to(s.rotation, { x: 3, duration: 0.5 });
+
+                            let runsGot = runs >= 2 ? runs - 1 : 0; 
+                            score += runsGot; 
+                            
+                            setTimeout(() => finishDelivery(true, runsGot, true), 2500); 
+                        }});
+                    } 
+                    else { 
+                        score += runs; matchBallLog.push(runs.toString()); setCommentary(runs.toString()); 
+                        window.gsap.to(ball.position, { x: 0, z: 13, y: 1, duration: 1.4, delay: isGreatSave ? 0.6 : 0.2 }); 
+                        setTimeout(() => finishDelivery(true, runs, false), 1800 + (isGreatSave?600:0)); 
+                    }
+                }}); 
             }
         }
 
         function showOverSummary() {
             const ovPanel = document.getElementById('over-summary');
             document.getElementById('os-over').innerText = overs; document.getElementById('os-score').innerText = `${score}/${wickets}`;
-            const sData = batterStats[strikerIdx]; const sr = sData.balls > 0 ? ((sData.runs/sData.balls)*100).toFixed(1) : "0.0";
-            document.getElementById('os-striker').innerHTML = `Striker: ${sData.name} - ${sData.runs} (${sData.balls}) | SR: ${sr}`;
-            if (innings === 1) { const rr = (score / overs).toFixed(2); document.getElementById('os-rate').innerText = `Current Run Rate: ${rr}`; document.getElementById('os-req').innerText = ""; } 
-            else { const remBalls = (TOTAL_OVERS * 6) - (overs * 6 + balls); const reqRuns = target - score; const rrr = remBalls > 0 ? ((reqRuns / remBalls) * 6).toFixed(2) : "0.0"; document.getElementById('os-rate').innerText = `Req. Run Rate: ${rrr}`; document.getElementById('os-req').innerText = `Need ${reqRuns} runs from ${remBalls} balls`; }
+            const sData = batterStats[strikerIdx]; const sr = sData.balls > 0 ? ((sData.runs/sData.balls)*100).toFixed(1) : "0.0"; document.getElementById('os-striker').innerHTML = `🏏 Striker: ${sData.name} - ${sData.runs} (${sData.balls}) | SR: ${sr}`;
+            const nsData = batterStats[nonStrikerIdx]; const nsr = nsData.balls > 0 ? ((nsData.runs/nsData.balls)*100).toFixed(1) : "0.0"; document.getElementById('os-nonstriker').innerHTML = `🏃 Non-Striker: ${nsData.name} - ${nsData.runs} (${nsData.balls}) | SR: ${nsr}`;
+            if (innings === 1) { const rr = (score / overs).toFixed(2); document.getElementById('os-rate').innerText = `Current Run Rate: ${rr}`; document.getElementById('os-req').innerText = ""; } else { const remBalls = (TOTAL_OVERS * 6) - (overs * 6 + balls); const reqRuns = target - score; const rrr = remBalls > 0 ? ((reqRuns / remBalls) * 6).toFixed(2) : "0.0"; document.getElementById('os-rate').innerText = `Req. Run Rate: ${rrr}`; document.getElementById('os-req').innerText = `Need ${reqRuns} runs from ${remBalls} balls`; }
             ovPanel.style.display = 'block'; setTimeout(() => { ovPanel.style.display = 'none'; isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1000); }, 4000);
         }
 
         function getOversFloat(ovr, bls) { return ovr + (bls / 6); }
 
         function finishDelivery(isLegalBall, runScored, isWicket) {
-            let batterName = batterStats[strikerIdx].name;
-            let overJustEnded = false; 
+            let batterName = batterStats[strikerIdx].name; let overJustEnded = false; 
 
             if (isLegalBall) {
-                batterStats[strikerIdx].runs += runScored; balls++; 
-                liveMatchStats.runs[batterName] = (liveMatchStats.runs[batterName] || 0) + runScored;
-                liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + runScored;
-
+                batterStats[strikerIdx].runs += runScored; balls++; liveMatchStats.runs[batterName] = (liveMatchStats.runs[batterName] || 0) + runScored; liveMatchStats.runsConceded[currentBowlerName] = (liveMatchStats.runsConceded[currentBowlerName] || 0) + runScored;
                 if(balls === 6) { 
-                    balls = 0; overs++; matchBallLog.push('OVER_END'); overJustEnded = true;
-                    liveMatchStats.overs[currentBowlerName] = (liveMatchStats.overs[currentBowlerName] || 0) + 1;
-
-                    let availableIndices = [2, 3, 4, 5].filter(x => !bowlersUsed.includes(x));
-                    if(availableIndices.length === 0) availableIndices = [0, 1, 2, 3, 4, 5].filter(x => !bowlersUsed.includes(x));
-                    let nextBIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-                    bowlersUsed.push(nextBIdx); currentBowlerName = ROSTERS[bowlingTeamStr][nextBIdx];
+                    balls = 0; overs++; matchBallLog.push('OVER_END'); overJustEnded = true; liveMatchStats.overs[currentBowlerName] = (liveMatchStats.overs[currentBowlerName] || 0) + 1;
+                    let availableIndices = [2, 3, 4, 5].filter(x => !bowlersUsed.includes(x)); if(availableIndices.length === 0) availableIndices = [0, 1, 2, 3, 4, 5].filter(x => !bowlersUsed.includes(x));
+                    let nextBIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)]; bowlersUsed.push(nextBIdx); currentBowlerName = ROSTERS[bowlingTeamStr][nextBIdx];
                 }
             }
             
             if (isWicket) { 
-                batterStats[strikerIdx].out = true; 
-                liveMatchStats.wickets[currentBowlerName] = (liveMatchStats.wickets[currentBowlerName] || 0) + 1; 
+                batterStats[strikerIdx].out = true; liveMatchStats.wickets[currentBowlerName] = (liveMatchStats.wickets[currentBowlerName] || 0) + 1; 
                 if(wickets < MAX_WICKETS) { 
                     strikerIdx = nextBatterIdx; nextBatterIdx++; 
-                    setTimeout(() => showBroadcastGraphic('BAT', batterStats[strikerIdx].name), 2000); // Show new batter graphic
+                    scene.remove(strikerMesh); strikerMesh = createPlayer(battingTeamStr, 'BAT'); scene.add(strikerMesh);
+                    setTimeout(() => showBroadcastGraphic('BAT', batterStats[strikerIdx].name), 2000); 
                 } 
-            } 
-            else if (runScored % 2 !== 0) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
-            if (isLegalBall && balls === 0 && !isWicket) { let temp = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = temp; }
+            } else if ((runScored % 2 !== 0) || (isLegalBall && balls === 0 && !isWicket)) { 
+                let tempIdx = strikerIdx; strikerIdx = nonStrikerIdx; nonStrikerIdx = tempIdx; 
+                let tempMesh = strikerMesh; strikerMesh = nonStrikerMesh; nonStrikerMesh = tempMesh;
+            }
             
-            checkMilestones();
-            updateScoreboard();
+            setBattingStance(strikerMesh, true); setBattingStance(nonStrikerMesh, false);
+            strikerMesh.position.set(0, 0, 8.5); strikerMesh.rotation.y = 0; 
+            nonStrikerMesh.position.set(-1.5, 0, -8.5); nonStrikerMesh.rotation.y = Math.PI;
+
+            checkMilestones(); updateScoreboard();
             
             let isMatchOver = false, isInningsOver = false;
-            if(innings === 2 && score >= target) { isMatchOver = true; endMatch(battingTeamStr); }
-            else if(wickets >= MAX_WICKETS || overs >= TOTAL_OVERS) { if(innings === 1) isInningsOver = true; else isMatchOver = true; }
-
+            if(innings === 2 && score >= target) { isMatchOver = true; endMatch(battingTeamStr); } else if(wickets >= MAX_WICKETS || overs >= TOTAL_OVERS) { if(innings === 1) isInningsOver = true; else isMatchOver = true; }
             if (isMatchOver) { if(innings === 2 && score < target) endMatch(bowlingTeamStr); else if (innings === 2 && score === target - 1) endMatch("DRAW"); return; }
             if (isInningsOver) {
                 firstInningsScore = score; firstInningsOversFaced = getOversFloat(overs, balls); target = score + 1; score = 0; wickets = 0; balls = 0; overs = 0; matchBallLog = []; innings = 2;
@@ -537,15 +816,23 @@
             }
 
             ball.visible = false; ballShadow.visible = false; stumpsBatting.children[1].position.set(0, 0.47, 0); stumpsBatting.children[1].rotation.set(0, 0, 0);
-            strikerMesh.position.set(0, 0, 10); strikerMesh.rotation.y = 0; nonStrikerMesh.position.set(1.5, 0, -10); nonStrikerMesh.rotation.y = Math.PI;
-            resetCameraStatic(); fielders.forEach(f => { if(Math.abs(f.position.x) < 20 && Math.abs(f.position.z) < 20) { f.position.set(Math.cos(Math.random()*6)*50, 0, Math.sin(Math.random()*6)*50); f.lookAt(0,0,0); } });
+            resetCameraStatic(); 
             
-            if (overJustEnded) { 
-                showOverSummary(); 
-                setTimeout(() => showBroadcastGraphic('BOWL', currentBowlerName), 3500); // Show new bowler graphic after summary
-            } else { 
-                isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); 
-            }
+            keeper.position.set(0, 0, 13);
+            keeper.userData.arms[0].rotation.set(0,0,0);
+            keeper.userData.arms[1].rotation.set(0,0,0);
+
+            bowler.lookAt(0, 0, bowler.userData.runStart);
+            window.gsap.to(bowler.position, { x: 0.6, z: bowler.userData.runStart, duration: 1.5, onUpdate: () => bowler.userData.isMoving = true, onComplete: () => { bowler.userData.isMoving = false; bowler.lookAt(0,0,10); } });
+            
+            fielders.forEach(f => { 
+                window.gsap.to(f.rotation, {x: 0, duration: 0.5});
+                window.gsap.to(f.position, {y: 0, duration: 0.5});
+                f.lookAt(f.userData.origPos.x, 0, f.userData.origPos.z);
+                window.gsap.to(f.position, { x: f.userData.origPos.x, z: f.userData.origPos.z, duration: 1.5, onUpdate: () => f.userData.isMoving = true, onComplete: () => { f.userData.isMoving = false; f.lookAt(0,0,0); } }); 
+            });
+            
+            if (overJustEnded) { showOverSummary(); setTimeout(() => showBroadcastGraphic('BOWL', currentBowlerName), 3500); } else { isBallInPlay = false; deliveryTimer = setTimeout(deliverBall, 1500); }
         }
 
         function calculateNRR(rs, of, rc, ob) { return (of > 0 ? rs/of : 0) - (ob > 0 ? rc/ob : 0); }
@@ -558,44 +845,29 @@
         function processWCResult(winner, t1, t2) {
             let p1 = wc.points[t1], p2 = wc.points[t2];
             if(p1 && p2) { if (winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; } else if (winner === t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; } else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; } }
-
             if(gameMode === 'WC' || gameMode === 'TOURNAMENT') {
                 let t1Runs, t1Overs, t2Runs, t2Overs;
-                if (t1 === battingTeamStr) { t1Runs = score; t1Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls); t2Runs = firstInningsScore; t2Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced; } 
-                else { t1Runs = firstInningsScore; t1Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced; t2Runs = score; t2Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls); }
-                
+                if (t1 === battingTeamStr) { t1Runs = score; t1Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls); t2Runs = firstInningsScore; t2Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced; } else { t1Runs = firstInningsScore; t1Overs = firstInningsOversFaced >= TOTAL_OVERS ? TOTAL_OVERS : firstInningsOversFaced; t2Runs = score; t2Overs = wickets >= MAX_WICKETS ? TOTAL_OVERS : getOversFloat(overs, balls); }
                 if(p1 && p2) { p1.RS += t1Runs; p1.OF += t1Overs; p1.RC += t2Runs; p1.OB += t2Overs; p2.RS += t2Runs; p2.OF += t2Overs; p2.RC += t1Runs; p2.OB += t1Overs; p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB); p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB); }
-                
-                // Merge Live Stats
                 for(let p in liveMatchStats.runs) if(wc.playerStats[p]) wc.playerStats[p].runs += liveMatchStats.runs[p];
                 for(let p in liveMatchStats.balls) if(wc.playerStats[p]) wc.playerStats[p].ballsFaced += liveMatchStats.balls[p];
                 for(let p in liveMatchStats.wickets) if(wc.playerStats[p]) wc.playerStats[p].wickets += liveMatchStats.wickets[p];
                 for(let p in liveMatchStats.overs) if(wc.playerStats[p]) wc.playerStats[p].oversBowled += liveMatchStats.overs[p];
                 for(let p in liveMatchStats.runsConceded) if(wc.playerStats[p]) wc.playerStats[p].runsConceded += liveMatchStats.runsConceded[p];
-            }
-            saveWC();
+            } saveWC();
         }
 
         function endMatch(winner) {
             isBallInPlay = true; let finalWinner = winner; let marginStr = "";
             if (winner === "DRAW") { finalWinner = Math.random() > 0.5 ? battingTeamStr : bowlingTeamStr; marginStr = `Match Tied! ${finalWinner} wins Super Over!`; } 
             else { if (winner === battingTeamStr) marginStr = `${finalWinner} won by ${MAX_WICKETS - wickets} wickets`; else marginStr = `${finalWinner} won by ${target - 1 - score} runs`; }
-            
             showStatus(`${finalWinner} WINS!`); celebrateWin(finalWinner); 
-
             setTimeout(() => {
                 const msPanel = document.getElementById('match-scoreboard');
-                document.getElementById('ms-inn1').innerText = `${bowlingTeamStr}: ${firstInningsScore}`;
-                document.getElementById('ms-inn2').innerText = `${battingTeamStr}: ${score}/${wickets}`;
-                document.getElementById('ms-result').innerText = marginStr; msPanel.style.display = 'block';
-
+                document.getElementById('ms-inn1').innerText = `${bowlingTeamStr}: ${firstInningsScore}`; document.getElementById('ms-inn2').innerText = `${battingTeamStr}: ${score}/${wickets}`; document.getElementById('ms-result').innerText = marginStr; msPanel.style.display = 'block';
                 setTimeout(() => {
                     msPanel.style.display = 'none';
-                    if(gameMode === 'WC' || gameMode === 'TOURNAMENT') {
-                        let m = wc.matches.find(mx => mx.id === wc.currentMatchIdx);
-                        if(m) { m.winner = finalWinner; m.res = marginStr; m.status = 'DONE'; processWCResult(finalWinner, m.t1, m.t2); }
-                        renderWCHub();
-                    } else { renderMainMenu(); }
+                    if(gameMode === 'WC' || gameMode === 'TOURNAMENT') { let m = wc.matches.find(mx => mx.id === wc.currentMatchIdx); if(m) { m.winner = finalWinner; m.res = marginStr; m.status = 'DONE'; processWCResult(finalWinner, m.t1, m.t2); } renderWCHub(); } else renderMainMenu();
                 }, 5000);
             }, 3000);
         }
@@ -603,45 +875,24 @@
         function updateScoreboard() {
             document.getElementById('scorecard').innerText = `${battingTeamStr.substring(0,3).toUpperCase()}: ${score}/${wickets} (${overs}.${balls})`;
             document.getElementById('target-info').innerText = innings === 2 ? `TARGET: ${target}` : "1st INNINGS";
-            
             const eqBox = document.getElementById('equation-box');
-            if (innings === 2 && target > 0 && overs < TOTAL_OVERS && wickets < MAX_WICKETS && score < target) {
-                let ballsLeft = (TOTAL_OVERS * 6) - (overs * 6 + balls); let runsNeeded = target - score;
-                eqBox.innerText = `Need ${runsNeeded} runs in ${ballsLeft} balls`; eqBox.style.display = 'block';
-            } else { eqBox.style.display = 'none'; }
-
+            if (innings === 2 && target > 0 && overs < TOTAL_OVERS && wickets < MAX_WICKETS && score < target) { let ballsLeft = (TOTAL_OVERS * 6) - (overs * 6 + balls); let runsNeeded = target - score; eqBox.innerText = `Need ${runsNeeded} runs in ${ballsLeft} balls`; eqBox.style.display = 'block'; } else { eqBox.style.display = 'none'; }
             if(batterStats.length > 0 && strikerIdx < 6 && nonStrikerIdx < 6) {
                 const sData = batterStats[strikerIdx]; const nsData = batterStats[nonStrikerIdx];
                 document.getElementById('batter-stats').innerHTML = `🏏 <b>${sData.name}</b>: ${sData.runs}* (${sData.balls}) &nbsp;|&nbsp; ${nsData.name}: ${nsData.runs}* (${nsData.balls})`;
                 document.getElementById('bowler-name').innerHTML = `<b>${currentBowlerName}</b>`;
             }
-            
-            let lastOverEndIdx = matchBallLog.lastIndexOf('OVER_END');
-            let trackerBalls = [];
-            if (lastOverEndIdx !== -1) {
-                let ballsAfter = matchBallLog.slice(lastOverEndIdx + 1);
-                if (ballsAfter.length > 0) { trackerBalls = ballsAfter; } 
-                else { let secondLastIdx = matchBallLog.lastIndexOf('OVER_END', lastOverEndIdx - 1); trackerBalls = matchBallLog.slice(secondLastIdx + 1, lastOverEndIdx); }
-            } else { trackerBalls = matchBallLog; }
-
-            document.getElementById('ball-tracker').innerHTML = trackerBalls.map(b => { 
-                return `<div class="ball-bubble ${b==='4'?'b-4':b==='6'?'b-6':b==='W'?'b-w':b==='WD'?'b-wd':''}">${b}</div>`; 
-            }).join('');
+            let lastOverEndIdx = matchBallLog.lastIndexOf('OVER_END'); let trackerBalls = [];
+            if (lastOverEndIdx !== -1) { let ballsAfter = matchBallLog.slice(lastOverEndIdx + 1); if (ballsAfter.length > 0) trackerBalls = ballsAfter; else { let secondLastIdx = matchBallLog.lastIndexOf('OVER_END', lastOverEndIdx - 1); trackerBalls = matchBallLog.slice(secondLastIdx + 1, lastOverEndIdx); } } else trackerBalls = matchBallLog;
+            document.getElementById('ball-tracker').innerHTML = trackerBalls.map(b => { return `<div class="ball-bubble ${b==='4'?'b-4':b==='6'?'b-6':b==='W'?'b-w':b==='WD'?'b-wd':''}">${b}</div>`; }).join('');
         }
         
-        function showStatus(msg) { const el = document.getElementById('status'); el.innerText = msg; el.style.display = 'block'; gsap.fromTo(el, {scale: 0}, {scale: 1, duration: 0.5, ease: "elastic.out(1, 0.3)"}); setTimeout(() => el.style.display = 'none', 2500); }
+        function showStatus(msg) { const el = document.getElementById('status'); el.innerText = msg; el.style.display = 'block'; window.gsap.fromTo(el, {scale: 0}, {scale: 1, duration: 0.5, ease: "elastic.out(1, 0.3)"}); setTimeout(() => el.style.display = 'none', 2500); }
 
         function renderMainMenu() {
             const mc = document.getElementById('menu-container'); mc.classList.remove('hidden'); document.getElementById('commentary-box').innerText = ""; document.getElementById('equation-box').style.display = 'none';
             let resBtn = ""; if (loadWC() && wc.phase !== 'FINISHED') { resBtn = `<div class="menu-btn resume-btn" id="btn-wc-res">▶ RESUME ${wc.isKnockoutOnly ? 'TOURNAMENT' : 'WORLD CUP'}</div>`; }
-            
-            mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏏 ULTIMATE CRICKET</div>
-            ${resBtn}
-            <div class="menu-btn" id="btn-quick">⚡ QUICK MATCH</div>
-            <div class="menu-btn" id="btn-wc-new">🏆 NEW WORLD CUP</div>
-            <div class="menu-btn trn-btn" id="btn-trn-new">⚔️ KNOCKOUT TOURNAMENT</div>
-            </div>`;
-
+            mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏏 ULTIMATE CHIBI CRICKET</div>${resBtn}<div class="menu-btn" id="btn-quick">⚡ QUICK MATCH</div><div class="menu-btn" id="btn-wc-new">🏆 NEW WORLD CUP</div><div class="menu-btn trn-btn" id="btn-trn-new">⚔️ KNOCKOUT TOURNAMENT</div></div>`;
             document.getElementById('btn-quick').onclick = () => { gameMode = 'QUICK'; renderTeamSelect('PLAYER'); };
             document.getElementById('btn-wc-new').onclick = () => { gameMode = 'WC'; clearWC(); renderTeamSelect('PLAYER'); };
             document.getElementById('btn-trn-new').onclick = () => { gameMode = 'TOURNAMENT'; clearWC(); renderTeamSelect('PLAYER'); };
@@ -653,150 +904,55 @@
             let html = `<div class="glass-panel"><div class="menu-title">${step === 'PLAYER' ? "YOUR TEAM" : "OPPONENT"}</div><div class="team-grid">`;
             TEAMS.forEach(t => { const disabled = (step === 'OPPONENT' && t === playerTeam) ? 'style="opacity:0.3; pointer-events:none"' : ''; html += `<div class="team-btn" ${disabled} data-team="${t}" style="border-left: 5px solid #${TEAM_COLORS[t].toString(16)}">${t}</div>`; });
             html += `</div></div>`; mc.innerHTML = html;
-            document.querySelectorAll('.team-btn').forEach(b => {
-                b.onclick = () => {
-                    if(step === 'PLAYER') { 
-                        playerTeam = b.dataset.team; 
-                        if(gameMode === 'QUICK') renderTeamSelect('OPPONENT'); 
-                        else if(gameMode === 'WC') { initWorldCup(); renderWCHub(); }
-                        else if(gameMode === 'TOURNAMENT') { initKnockout(); renderWCHub(); }
-                    } else { 
-                        opponentTeam = b.dataset.team; 
-                        processTossAndStart(playerTeam, opponentTeam, {phase: 'QUICK MATCH', id: 0}); 
-                    }
-                };
-            });
+            document.querySelectorAll('.team-btn').forEach(b => { b.onclick = () => { if(step === 'PLAYER') { playerTeam = b.dataset.team; if(gameMode === 'QUICK') renderTeamSelect('OPPONENT'); else if(gameMode === 'WC') { initWorldCup(); renderWCHub(); } else if(gameMode === 'TOURNAMENT') { initKnockout(); renderWCHub(); } } else { opponentTeam = b.dataset.team; processTossAndStart(playerTeam, opponentTeam, {phase: 'QUICK MATCH', id: 0}); } }; });
         }
 
-        function initWorldCup() {
-            wc.active = true; wc.phase = 'GROUP'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.currentTab = 'A'; wc.isKnockoutOnly = false; initPlayerStats();
-            let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam);
-            wc.groups = { A: pool.slice(0,4), B: pool.slice(4,8), C: pool.slice(8,12), D: pool.slice(12,16) };
-            TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; });
-            
-            let mId = 0; let matchups = [[0,1], [2,3], [0,2], [1,3], [0,3], [1,2]]; let groupOrder = ['A', 'B', 'C', 'D'];
-            for (let round = 0; round < 6; round++) { for (let g of groupOrder) { let tg = wc.groups[g]; let pair = matchups[round]; wc.matches.push({ id: mId++, phase: 'GROUP', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); } }
-            saveWC();
-        }
-
-        function initKnockout() {
-            wc.active = true; wc.phase = 'ROUND OF 16'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.isKnockoutOnly = true; initPlayerStats();
-            let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam);
-            TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; });
-            let mId = 0; for(let i=0; i<8; i++) { wc.matches.push({ id: mId++, phase: 'ROUND OF 16', group: `M${i+1}`, t1: pool[i*2], t2: pool[i*2+1], status: 'PENDING', winner: null, res: "" }); }
-            saveWC();
-        }
+        function initWorldCup() { wc.active = true; wc.phase = 'GROUP'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.currentTab = 'A'; wc.isKnockoutOnly = false; initPlayerStats(); let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam); wc.groups = { A: pool.slice(0,4), B: pool.slice(4,8), C: pool.slice(8,12), D: pool.slice(12,16) }; TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; }); let mId = 0; let matchups = [[0,1], [2,3], [0,2], [1,3], [0,3], [1,2]]; let groupOrder = ['A', 'B', 'C', 'D']; for (let round = 0; round < 6; round++) { for (let g of groupOrder) { let tg = wc.groups[g]; let pair = matchups[round]; wc.matches.push({ id: mId++, phase: 'GROUP', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); } } saveWC(); }
+        function initKnockout() { wc.active = true; wc.phase = 'ROUND OF 16'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.isKnockoutOnly = true; initPlayerStats(); let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam); TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; }); let mId = 0; for(let i=0; i<8; i++) { wc.matches.push({ id: mId++, phase: 'ROUND OF 16', group: `M${i+1}`, t1: pool[i*2], t2: pool[i*2+1], status: 'PENDING', winner: null, res: "" }); } saveWC(); }
 
         function simMatch(mIdx) {
-            let match = wc.matches[mIdx];
-            let r1 = Math.floor(Math.random() * 25) + 15; let r2 = Math.floor(Math.random() * 25) + 15; let o1 = TOTAL_OVERS, o2 = TOTAL_OVERS, w1 = 0, w2 = 0;
-            if(r1 > r2) { match.winner = match.t1; match.res = `${match.t1} won by ${r1-r2} runs`; o2 = TOTAL_OVERS; w2 = 5; w1 = Math.floor(Math.random()*4)+1; } 
-            else if(r2 > r1) { match.winner = match.t2; match.res = `${match.t2} won by ${Math.floor(Math.random()*3)+1} wkts`; o2 = (Math.random()*1 + 1.1).toFixed(1); w1 = 5; w2 = Math.floor(Math.random()*4)+1; } 
-            else { match.winner = "DRAW"; match.res = "Match Tied"; w1 = 3; w2 = 3; }
-            
+            let match = wc.matches[mIdx]; let r1 = Math.floor(Math.random() * 25) + 15; let r2 = Math.floor(Math.random() * 25) + 15; let o1 = TOTAL_OVERS, o2 = TOTAL_OVERS, w1 = 0, w2 = 0;
+            if(r1 > r2) { match.winner = match.t1; match.res = `${match.t1} won by ${r1-r2} runs`; o2 = TOTAL_OVERS; w2 = 5; w1 = Math.floor(Math.random()*4)+1; } else if(r2 > r1) { match.winner = match.t2; match.res = `${match.t2} won by ${Math.floor(Math.random()*3)+1} wkts`; o2 = (Math.random()*1 + 1.1).toFixed(1); w1 = 5; w2 = Math.floor(Math.random()*4)+1; } else { match.winner = "DRAW"; match.res = "Match Tied"; w1 = 3; w2 = 3; }
             let p1 = wc.points[match.t1], p2 = wc.points[match.t2];
-            if(p1 && p2) { 
-                if (match.winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; }
-                else if (match.winner === match.t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; } else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; }
-                p1.RS+=r1; p1.OF+=parseFloat(o1); p1.RC+=r2; p1.OB+=parseFloat(o2); p2.RS+=r2; p2.OF+=parseFloat(o2); p2.RC+=r1; p2.OB+=parseFloat(o1);
-                p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB); p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB);
-            }
-            distributeSimStats(match.t1, r1, w2); distributeSimStats(match.t2, r2, w1);
-            match.status = 'DONE'; saveWC();
+            if(p1 && p2) { if (match.winner === "DRAW") { p1.P++; p2.P++; p1.T++; p2.T++; p1.Pts+=1; p2.Pts+=1; } else if (match.winner === match.t1) { p1.P++; p2.P++; p1.W++; p2.L++; p1.Pts+=2; } else { p1.P++; p2.P++; p1.L++; p2.W++; p2.Pts+=2; } p1.RS+=r1; p1.OF+=parseFloat(o1); p1.RC+=r2; p1.OB+=parseFloat(o2); p2.RS+=r2; p2.OF+=parseFloat(o2); p2.RC+=r1; p2.OB+=parseFloat(o1); p1.NRR = calculateNRR(p1.RS, p1.OF, p1.RC, p1.OB); p2.NRR = calculateNRR(p2.RS, p2.OF, p2.RC, p2.OB); } distributeSimStats(match.t1, r1, w2); distributeSimStats(match.t2, r2, w1); match.status = 'DONE'; saveWC();
         }
 
         function checkPhaseComplete() { let pending = wc.matches.filter(m => m.phase === wc.phase && m.status === 'PENDING'); if (pending.length === 0) advancePhase(); }
-
-        function advancePhase() {
-            let currentMatches = wc.matches.filter(m => m.phase === wc.phase); let mId = wc.matches.length;
-            if (wc.isKnockoutOnly) {
-                if(wc.phase === 'ROUND OF 16') { wc.phase = 'QUARTER FINAL'; for(let i=0; i<4; i++) wc.matches.push({ id: mId++, phase: 'QUARTER FINAL', group: `QF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } 
-                else if(wc.phase === 'QUARTER FINAL') { wc.phase = 'SEMI FINAL'; for(let i=0; i<2; i++) wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: `SF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } 
-                else if(wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } 
-                else if(wc.phase === 'FINAL') wc.phase = 'FINISHED';
-            } else {
-                if (wc.phase === 'GROUP') {
-                    wc.phase = 'SUPER8'; let qualifiers = [];
-                    for(let g in wc.groups) { let sorted = wc.groups[g].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); qualifiers.push(sorted[0], sorted[1]); }
-                    wc.super8 = { G1: [qualifiers[0], qualifiers[3], qualifiers[4], qualifiers[7]], G2: [qualifiers[1], qualifiers[2], qualifiers[5], qualifiers[6]] }; wc.currentTab = 'G1';
-                    for(let g in wc.super8) { let tg = wc.super8[g]; let matchups = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]]; matchups.forEach(pair => { wc.matches.push({ id: mId++, phase: 'SUPER8', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); }); }
-                } else if (wc.phase === 'SUPER8') {
-                    wc.phase = 'SEMI FINAL'; let s1 = wc.super8.G1.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); let s2 = wc.super8.G2.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR);
-                    wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF1', t1: s1[0], t2: s2[1], status: 'PENDING', winner: null, res: "" }); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF2', t1: s2[0], t2: s1[1], status: 'PENDING', winner: null, res: "" });
-                } else if (wc.phase === 'SEMI FINAL') {
-                    wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" });
-                } else if (wc.phase === 'FINAL') { wc.phase = 'FINISHED'; }
-            }
-            saveWC(); renderWCHub();
-        }
+        function advancePhase() { let currentMatches = wc.matches.filter(m => m.phase === wc.phase); let mId = wc.matches.length;
+            if (wc.isKnockoutOnly) { if(wc.phase === 'ROUND OF 16') { wc.phase = 'QUARTER FINAL'; for(let i=0; i<4; i++) wc.matches.push({ id: mId++, phase: 'QUARTER FINAL', group: `QF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'QUARTER FINAL') { wc.phase = 'SEMI FINAL'; for(let i=0; i<2; i++) wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: `SF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'FINAL') wc.phase = 'FINISHED'; } else { if (wc.phase === 'GROUP') { wc.phase = 'SUPER8'; let qualifiers = []; for(let g in wc.groups) { let sorted = wc.groups[g].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); qualifiers.push(sorted[0], sorted[1]); } wc.super8 = { G1: [qualifiers[0], qualifiers[3], qualifiers[4], qualifiers[7]], G2: [qualifiers[1], qualifiers[2], qualifiers[5], qualifiers[6]] }; wc.currentTab = 'G1'; for(let g in wc.super8) { let tg = wc.super8[g]; let matchups = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]]; matchups.forEach(pair => { wc.matches.push({ id: mId++, phase: 'SUPER8', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); }); } } else if (wc.phase === 'SUPER8') { wc.phase = 'SEMI FINAL'; let s1 = wc.super8.G1.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); let s2 = wc.super8.G2.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF1', t1: s1[0], t2: s2[1], status: 'PENDING', winner: null, res: "" }); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF2', t1: s2[0], t2: s1[1], status: 'PENDING', winner: null, res: "" }); } else if (wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } else if (wc.phase === 'FINAL') { wc.phase = 'FINISHED'; } } saveWC(); renderWCHub(); }
 
         window.setTab = function(tab) { wc.currentTab = tab; renderWCHub(); }
         window.showStatsHub = function() {
-            const mc = document.getElementById('menu-container');
-            let allP = Object.keys(wc.playerStats).map(p => ({ name: p, team: wc.playerStats[p].team, runs: wc.playerStats[p].runs, wickets: wc.playerStats[p].wickets }));
-            let topRunners = [...allP].sort((a,b) => b.runs - a.runs).slice(0, 5); let topBowlers = [...allP].sort((a,b) => b.wickets - a.wickets).slice(0, 5);
-            let html = `<div class="glass-panel" style="max-width:800px"><div class="menu-title">📊 TOURNAMENT STATS</div><div class="wc-layout">
-                <div class="wc-panel" style="flex:1"><h3>🏏 MOST RUNS</h3><table class="pts-table"><tr><th>Player</th><th>Team</th><th>Runs</th></tr>`;
-            topRunners.forEach(p => html += `<tr><td>${p.name}</td><td>${p.team.substring(0,3).toUpperCase()}</td><td><b>${p.runs}</b></td></tr>`);
-            html += `</table></div><div class="wc-panel" style="flex:1"><h3>⚾ MOST WICKETS</h3><table class="pts-table"><tr><th>Player</th><th>Team</th><th>Wickets</th></tr>`;
-            topBowlers.forEach(p => html += `<tr><td>${p.name}</td><td>${p.team.substring(0,3).toUpperCase()}</td><td><b>${p.wickets}</b></td></tr>`);
-            html += `</table></div></div><button class="menu-btn" style="margin-top:15px; background:#444;" onclick="renderWCHub()">🔙 BACK TO HUB</button></div>`;
-            mc.innerHTML = html;
+            const mc = document.getElementById('menu-container'); let allP = Object.keys(wc.playerStats).map(p => ({ name: p, team: wc.playerStats[p].team, runs: wc.playerStats[p].runs, wickets: wc.playerStats[p].wickets })); let topRunners = [...allP].sort((a,b) => b.runs - a.runs).slice(0, 5); let topBowlers = [...allP].sort((a,b) => b.wickets - a.wickets).slice(0, 5);
+            let html = `<div class="glass-panel" style="max-width:800px"><div class="menu-title">📊 TOURNAMENT STATS</div><div class="wc-layout"><div class="wc-panel" style="flex:1"><h3>🏏 MOST RUNS</h3><table class="pts-table"><tr><th>Player</th><th>Team</th><th>Runs</th></tr>`;
+            topRunners.forEach(p => html += `<tr><td>${p.name}</td><td>${p.team.substring(0,3).toUpperCase()}</td><td><b>${p.runs}</b></td></tr>`); html += `</table></div><div class="wc-panel" style="flex:1"><h3>⚾ MOST WICKETS</h3><table class="pts-table"><tr><th>Player</th><th>Team</th><th>Wickets</th></tr>`;
+            topBowlers.forEach(p => html += `<tr><td>${p.name}</td><td>${p.team.substring(0,3).toUpperCase()}</td><td><b>${p.wickets}</b></td></tr>`); html += `</table></div></div><button class="menu-btn" style="margin-top:15px; background:#444;" onclick="renderWCHub()">🔙 BACK TO HUB</button></div>`; mc.innerHTML = html;
         }
 
         window.renderWCHub = function() {
             checkPhaseComplete(); const mc = document.getElementById('menu-container'); mc.classList.remove('hidden');
-            if (wc.phase === 'FINISHED') {
-                let finalM = wc.matches.find(m => m.phase === 'FINAL');
-                mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏆 CHAMPIONS: ${finalM.winner} 🏆</div><div class="overlay-text">${finalM.res}</div><button class="menu-btn" onclick="location.reload()">MAIN MENU</button></div>`; return;
-            }
+            if (wc.phase === 'FINISHED') { let finalM = wc.matches.find(m => m.phase === 'FINAL'); mc.innerHTML = `<div class="glass-panel"><div class="menu-title">🏆 CHAMPIONS: ${finalM.winner} 🏆</div><div class="overlay-text">${finalM.res}</div><button class="menu-btn" onclick="location.reload()">MAIN MENU</button></div>`; return; }
+            let html = `<div class="glass-panel" style="max-width:800px"><div class="menu-title">${wc.isKnockoutOnly ? 'TOURNAMENT' : 'WORLD CUP'} - ${wc.phase}</div><div class="wc-layout"><div class="wc-panel" style="flex:1.2; max-height:400px; overflow-y:auto;"><h3>SCHEDULE</h3>`;
+            
+            let currentMatches = wc.matches.filter(m => m.phase === wc.phase); 
+            let pendingMatches = currentMatches.filter(m => m.status === 'PENDING');
+            let doneMatches = currentMatches.filter(m => m.status === 'DONE');
+            let displayMatches = [...pendingMatches, ...doneMatches];
 
-            let html = `<div class="glass-panel" style="max-width:800px"><div class="menu-title">${wc.isKnockoutOnly ? 'TOURNAMENT' : 'WORLD CUP'} - ${wc.phase}</div><div class="wc-layout">`;
-            html += `<div class="wc-panel" style="flex:1.2; max-height:400px; overflow-y:auto;"><h3>SCHEDULE</h3>`;
-            let currentMatches = wc.matches.filter(m => m.phase === wc.phase);
-            currentMatches.forEach(m => {
-                let isPlayerMatch = m.t1 === wc.playerTeam || m.t2 === wc.playerTeam;
-                html += `<div class="match-row ${isPlayerMatch?'my-match':''}"><span><b>${m.t1}</b> vs <b>${m.t2}</b> <small>(${m.group})</small></span>`;
-                if(m.status === 'DONE') html += `<span style="color:#4CAF50; font-size:11px">${m.res}</span>`;
-                else {
-                    html += `<div class="action-btns">`;
-                    if (isPlayerMatch) html += `<button class="action-btn btn-play" id="play-${m.id}">PLAY</button>`;
-                    else { html += `<button class="action-btn btn-watch" id="watch-${m.id}">WATCH</button><button class="action-btn btn-sim" id="sim-${m.id}">SIM</button>`; }
-                    html += `</div>`;
-                }
-                html += `</div>`;
-            });
-            html += `</div>`;
-
-            if (!wc.isKnockoutOnly && (wc.phase === 'GROUP' || wc.phase === 'SUPER8')) {
-                html += `<div class="wc-panel" style="flex:1"><h3>STANDINGS</h3><div class="tab-bar">`;
-                let tabs = wc.phase === 'GROUP' ? ['A','B','C','D'] : ['G1','G2']; if(!tabs.includes(wc.currentTab)) wc.currentTab = tabs[0];
-                tabs.forEach(t => { html += `<button class="tab-btn ${wc.currentTab===t?'active':''}" onclick="setTab('${t}')">Grp ${t}</button>`; });
-                html += `</div><table class="pts-table"><tr><th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th></tr>`;
-                let teamsInTab = wc.phase === 'GROUP' ? wc.groups[wc.currentTab] : wc.super8[wc.currentTab];
-                let sorted = [...teamsInTab].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR);
-                sorted.forEach(t => {
-                    let p = wc.points[t]; let highlight = (p.Pts > 0 || t === wc.playerTeam) ? (t===wc.playerTeam ? 'style="color:gold"' : '') : ''; let nrrDisp = p.NRR > 0 ? `+${p.NRR.toFixed(2)}` : p.NRR.toFixed(2);
-                    html += `<tr ${highlight}><td><b>${t.substring(0,3).toUpperCase()}</b></td><td>${p.P}</td><td>${p.W}</td><td>${p.L}</td><td><b>${p.Pts}</b></td><td>${nrrDisp}</td></tr>`;
-                }); html += `</table></div>`;
-            } else { html += `<div class="wc-panel" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;"><h3>KNOCKOUT STAGE</h3><div style="font-size:40px">⚔️</div></div>`; }
-
-            html += `</div><div style="display:flex; gap:10px;"><button class="menu-btn" style="margin-top:15px; background:#1976D2; flex:1;" onclick="showStatsHub()">📊 TOURNAMENT STATS</button><button class="menu-btn" style="margin-top:15px; background:#444; flex:1;" onclick="location.reload()">SAVE & EXIT</button></div></div>`;
-            mc.innerHTML = html;
-
-            currentMatches.forEach(m => {
-                if(m.status === 'PENDING') {
-                    let simBtn = document.getElementById(`sim-${m.id}`); if(simBtn) simBtn.onclick = () => { simMatch(m.id); renderWCHub(); };
-                    let playBtn = document.getElementById(`play-${m.id}`); if(playBtn) playBtn.onclick = () => { wc.currentMatchIdx = m.id; processTossAndStart(m.t1, m.t2, m); };
-                    let watchBtn = document.getElementById(`watch-${m.id}`); if(watchBtn) watchBtn.onclick = () => { wc.currentMatchIdx = m.id; processTossAndStart(m.t1, m.t2, m); };
-                }
-            });
+            displayMatches.forEach(m => { let isPlayerMatch = m.t1 === wc.playerTeam || m.t2 === wc.playerTeam; html += `<div class="match-row ${isPlayerMatch?'my-match':''}"><span><b>${m.t1}</b> vs <b>${m.t2}</b> <small>(${m.group})</small></span>`; if(m.status === 'DONE') html += `<span style="color:#4CAF50; font-size:11px">${m.res}</span>`; else { html += `<div class="action-btns">`; if (isPlayerMatch) html += `<button class="action-btn btn-play" id="play-${m.id}">PLAY</button>`; else { html += `<button class="action-btn btn-watch" id="watch-${m.id}">WATCH</button><button class="action-btn btn-sim" id="sim-${m.id}">SIM</button>`; } html += `</div>`; } html += `</div>`; }); html += `</div>`;
+            if (!wc.isKnockoutOnly && (wc.phase === 'GROUP' || wc.phase === 'SUPER8')) { html += `<div class="wc-panel" style="flex:1"><h3>STANDINGS</h3><div class="tab-bar">`; let tabs = wc.phase === 'GROUP' ? ['A','B','C','D'] : ['G1','G2']; if(!tabs.includes(wc.currentTab)) wc.currentTab = tabs[0]; tabs.forEach(t => { html += `<button class="tab-btn ${wc.currentTab===t?'active':''}" onclick="setTab('${t}')">Grp ${t}</button>`; }); html += `</div><table class="pts-table"><tr><th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th></tr>`; let teamsInTab = wc.phase === 'GROUP' ? wc.groups[wc.currentTab] : wc.super8[wc.currentTab]; let sorted = [...teamsInTab].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); sorted.forEach(t => { let p = wc.points[t]; let highlight = (p.Pts > 0 || t === wc.playerTeam) ? (t===wc.playerTeam ? 'style="color:gold"' : '') : ''; let nrrDisp = p.NRR > 0 ? `+${p.NRR.toFixed(2)}` : p.NRR.toFixed(2); html += `<tr ${highlight}><td><b>${t.substring(0,3).toUpperCase()}</b></td><td>${p.P}</td><td>${p.W}</td><td>${p.L}</td><td><b>${p.Pts}</b></td><td>${nrrDisp}</td></tr>`; }); html += `</table></div>`; } else { html += `<div class="wc-panel" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;"><h3>KNOCKOUT STAGE</h3><div style="font-size:40px">⚔️</div></div>`; }
+            html += `</div><div style="display:flex; gap:10px;"><button class="menu-btn" style="margin-top:15px; background:#1976D2; flex:1;" onclick="showStatsHub()">📊 TOURNAMENT STATS</button><button class="menu-btn" style="margin-top:15px; background:#444; flex:1;" onclick="location.reload()">SAVE & EXIT</button></div></div>`; mc.innerHTML = html;
+            displayMatches.forEach(m => { if(m.status === 'PENDING') { let simBtn = document.getElementById(`sim-${m.id}`); if(simBtn) simBtn.onclick = () => { simMatch(m.id); renderWCHub(); }; let playBtn = document.getElementById(`play-${m.id}`); if(playBtn) playBtn.onclick = () => { wc.currentMatchIdx = m.id; processTossAndStart(m.t1, m.t2, m); }; let watchBtn = document.getElementById(`watch-${m.id}`); if(watchBtn) watchBtn.onclick = () => { wc.currentMatchIdx = m.id; processTossAndStart(m.t1, m.t2, m); }; } });
         }
 
         function animate() {
-            requestAnimationFrame(animate); renderer.render(scene, camera);
-            allPlayers.forEach(p => { if(p.userData.isMoving) { p.userData.legs[0].position.z = Math.sin(Date.now()*0.02)*0.4; p.userData.legs[1].position.z = -Math.sin(Date.now()*0.02)*0.4; } else { p.userData.legs[0].position.z = 0; p.userData.legs[1].position.z = 0; } });
-            if (camState === 'RUNUP' && bowler) { gsap.to(camera.position, { x: bowler.position.x*0.5, y: 6, z: bowler.position.z-6, duration: 0.1 }); controls.target.set(0, 1, 10); } else if (camState === 'FOLLOW' && ball.visible) controls.target.lerp(ball.position, 0.1);
+            requestAnimationFrame(animate); renderer.render(scene, camera); const time = Date.now() * 0.003;
+            allPlayers.forEach(p => { 
+                if (!p.userData.isMoving && p.userData.torso) { const breath = Math.sin(time + p.userData.uuid * 10) * 0.03; p.userData.torso.scale.set(1 + breath, 1 + breath, 1 + breath); } else if (p.userData.torso) { p.userData.torso.scale.set(1, 1, 1); }
+                if (p.userData.isMoving && p.userData.legs && p.userData.arms) { const speed = Date.now() * 0.015; const swing = Math.sin(speed) * 0.8; p.userData.legs[0].rotation.x = swing; p.userData.legs[1].rotation.x = -swing; if (p.userData.role !== 'BAT') { p.userData.arms[0].rotation.x = -swing; p.userData.arms[1].rotation.x = swing; } } 
+                else if (p.userData.legs && p.userData.arms) { p.userData.legs[0].rotation.x = 0; p.userData.legs[1].rotation.x = 0; if (p.userData.role !== 'BAT') { p.userData.arms[0].rotation.x = 0; p.userData.arms[1].rotation.x = 0; } } 
+            });
+            if (camState === 'RUNUP' && bowler) { window.gsap.to(camera.position, { x: bowler.position.x*0.5, y: 15, z: bowler.position.z-10, duration: 0.1 }); controls.target.set(0, 1, 0); } else if (camState === 'FOLLOW' && ball.visible) { controls.target.lerp(ball.position, 0.1); }
             controls.update(); if(ball.visible) { ballShadow.position.x = ball.position.x; ballShadow.position.z = ball.position.z; ballShadow.scale.setScalar(Math.max(0, 1 - ball.position.y/25)); }
         }
 
