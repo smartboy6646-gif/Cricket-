@@ -205,6 +205,16 @@
 
         let wc = { active: false, phase: 'GROUP', playerTeam: '', groups: { A:[], B:[], C:[], D:[] }, super8: { G1:[], G2:[] }, points: {}, matches: [], currentMatchIdx: 0, currentTab: 'A', isKnockoutOnly: false, playerStats: {} };
 
+        function clampToBoundary(x, z, margin) {
+            let maxRadius = BOUNDARY_RADIUS - margin;
+            let dist = Math.hypot(x, z);
+            if (dist > maxRadius) {
+                let scale = maxRadius / dist;
+                return { x: x * scale, z: z * scale };
+            }
+            return { x: x, z: z };
+        }
+
         function initPlayerStats() { 
             wc.playerStats = {}; 
             for(let t in ROSTERS) { ROSTERS[t].forEach(p => { wc.playerStats[p] = { runs: 0, ballsFaced: 0, wickets: 0, oversBowled: 0, runsConceded: 0, team: t }; }); } 
@@ -516,20 +526,22 @@
             batterStats[strikerIdx].balls++; let bName = batterStats[strikerIdx].name; liveMatchStats.balls[bName] = (liveMatchStats.balls[bName] || 0) + 1;
 
             const rand = Math.random(); let runs = 0; let shotType = '';
-            if(rand < 0.05) shotType = 'BOWLED'; else if(rand < 0.15) shotType = 'CAUGHT'; else if(rand < 0.25) { shotType = 'DOT'; runs = 0; } 
-            else if(rand < 0.50) { shotType = 'RUNS'; runs = Math.random()>0.5?1:2; } else if(rand < 0.75) { shotType = 'FOUR'; runs = 4; } else { shotType = 'SIX'; runs = 6; } 
+            if(rand < 0.05) shotType = 'BOWLED'; 
+            else if(rand < 0.17) shotType = 'CAUGHT'; 
+            else if(rand < 0.32) { shotType = 'DOT'; runs = 0; } 
+            else if(rand < 0.60) { shotType = 'RUNS'; runs = Math.random()>0.5?1:2; } 
+            else if(rand < 0.80) { shotType = 'FOUR'; runs = 4; } 
+            else { shotType = 'SIX'; runs = 6; } 
             
             let angle = Math.random() * Math.PI * 2;
             
-            // ==========================================
-            // FIX 1: MATHEMATICALLY PERFECT BOUNDARY
-            // ==========================================
-            // Radius R=60. Bat is at (0, 10). Find exact distance to rope in this angle.
-            let r_boundary = Math.sqrt(100 * Math.pow(Math.cos(angle), 2) + 3500) - 10 * Math.cos(angle);
-            
+            let b_quad = 20 * Math.cos(angle);
+            let c_quad = 100 - (BOUNDARY_RADIUS * BOUNDARY_RADIUS);
+            let r_boundary = (-b_quad + Math.sqrt(b_quad*b_quad - 4*c_quad)) / 2;
+
             let r = 0;
             if (shotType === 'SIX') r = r_boundary + 15;
-            else if (shotType === 'FOUR') r = r_boundary + 4; // Safely crosses line just a bit
+            else if (shotType === 'FOUR') r = r_boundary + 4; 
             else if (runs === 2) r = r_boundary * 0.65;
             else r = r_boundary * 0.4;
 
@@ -539,22 +551,36 @@
             let closestF = fielders[0], minDist = 999;
             fielders.forEach(f => { const d = Math.hypot(f.position.x - destX, f.position.z - destZ); if(d < minDist) { minDist = d; closestF = f; } });
 
+            let dxF = closestF.position.x - 0;
+            let dzF = closestF.position.z - 10;
+            let fielderAngle = Math.atan2(dxF, dzF);
+            if (fielderAngle < 0) fielderAngle += Math.PI * 2;
+            
+            let angleDiff = Math.abs(angle - fielderAngle);
+            if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+
+            if (shotType === 'FOUR' && angleDiff < 0.15) {
+                shotType = 'RUNS'; 
+                runs = Math.random() > 0.5 ? 1 : 2; 
+                r = Math.hypot(dxF, dzF) + 2; 
+                destX = Math.sin(angle) * r; 
+                destZ = Math.cos(angle) * r + 10;
+            }
+
             let isGreatSave = false;
             let isDivingMiss = false;
             let ballTargetX = destX; let ballTargetZ = destZ;
             let isLoftedFour = (shotType === 'FOUR' && Math.random() > 0.5);
 
-            // Great Save Logic
             if (shotType === 'FOUR' && minDist < 45 && Math.random() < 0.6) {
                 if (Math.random() < 0.7) { 
                     shotType = 'RUNS'; runs = Math.random() > 0.5 ? 3 : 2;
                     isGreatSave = true;
-                    // Intercept exactly 4 units inside the boundary rope!
                     let r_intercept = r_boundary - 4;
                     ballTargetX = Math.sin(angle) * r_intercept; 
                     ballTargetZ = Math.cos(angle) * r_intercept + 10;
                 } else {
-                    isDivingMiss = true; // 30% chance Fielder dives but misses!
+                    isDivingMiss = true; 
                 }
             }
 
@@ -574,7 +600,6 @@
             else if(shotType === 'CAUGHT') {
                 playGameSound('hit'); const isDrop = Math.random() < 0.15; 
                 
-                // Catch well inside the rope
                 let r_catch = r_boundary - (Math.random() * 3 + 1);
                 let catchX = Math.sin(angle) * r_catch; 
                 let catchZ = Math.cos(angle) * r_catch + 10;
@@ -588,47 +613,61 @@
                 window.gsap.to(closestF.userData.arms[1].rotation, { x: -2.5, duration: 0.3, delay: 1.6, yoyo: true, repeat: 1 });
 
                 window.gsap.to(ball.position, { x: catchX, z: catchZ, duration: 2.0, ease: 'linear', onUpdate: function() { const p = this.progress(); if(p < 1) ball.position.y = Math.sin(p * Math.PI) * 20; }, onComplete: () => { 
-                    if (isDrop) {
-                        showStatus("DROPPED!"); setCommentary('0');
-                        window.gsap.to(ball.position, {x: catchX + (Math.random()*8-4), z: catchZ + (Math.random()*8-4), y: 0, duration: 0.8});
-                        
-                        let runsGot = Math.random() < 0.5 ? 1 : 2; 
-                        let isRunOutOnDrop = runsGot === 2 && Math.random() < 0.3; 
-                        
-                        if (runsGot === 2 || isRunOutOnDrop) {
-                            strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true;
-                            
-                            if (isRunOutOnDrop) {
-                                let tlS = window.gsap.timeline();
-                                tlS.to(strikerMesh.position, { z: -8.5, duration: 0.8, ease: 'linear' });
-                                tlS.to(strikerMesh.position, { z: 8.5, duration: 2.5, ease: 'linear' }); 
-                                
-                                let tlNS = window.gsap.timeline();
-                                tlNS.to(nonStrikerMesh.position, { z: 8.5, duration: 0.8, ease: 'linear' });
-                                tlNS.to(nonStrikerMesh.position, { z: -8.5, duration: 2.5, ease: 'linear' });
-                            } else {
-                                window.gsap.to(strikerMesh.position, { z: 8.5, duration: 1.8, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
-                                window.gsap.to(nonStrikerMesh.position, { z: -8.5, duration: 1.8, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
-                            }
-                        }
+                    
+                    let dropOutcome = Math.random();
+                    let isBoundaryDrop = Math.hypot(catchX, catchZ) > (BOUNDARY_RADIUS - 12);
 
-                        setTimeout(() => {
-                            closestF.lookAt(0, 0, 10);
-                            if (isRunOutOnDrop) {
-                                window.gsap.to(ball.position, { x: 0, z: 10, y: 0.5, duration: 1.2, onComplete: () => { 
-                                    window.gsap.killTweensOf(strikerMesh.position); window.gsap.killTweensOf(nonStrikerMesh.position);
-                                    strikerMesh.userData.isMoving = false; nonStrikerMesh.userData.isMoving = false;
-                                    wickets++; matchBallLog.push('W'); showStatus("RUN OUT!"); setCommentary('RO'); celebrateWicket(); 
-                                    const s = stumpsBatting.children[1]; window.gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); window.gsap.to(s.rotation, { x: 3, duration: 0.5 });
-                                    score += 1; 
-                                    setTimeout(() => finishDelivery(true, 1, true), 2000);
-                                }});
-                            } else {
-                                window.gsap.to(ball.position, { x: 0, z: 13, y: 1, duration: 1.4 }); 
-                                score += runsGot; matchBallLog.push(runsGot.toString());
-                                setTimeout(() => finishDelivery(true, runsGot, false), 1600);
+                    if (isDrop) {
+                        if (isBoundaryDrop && dropOutcome < 0.33) { 
+                            window.gsap.to(ball.position, {x: destX, z: destZ, y: 0.1, duration: 0.5});
+                            score += 6; matchBallLog.push('6');
+                            setTimeout(() => { showStatus("DROPPED FOR SIX!"); playGameSound('cheer'); }, 500);
+                            setTimeout(() => finishDelivery(true, 6, false), 2500);
+                        } else if (isBoundaryDrop && dropOutcome < 0.66) {
+                            window.gsap.to(ball.position, {x: destX, z: destZ, y: 0.1, duration: 1.0});
+                            score += 4; matchBallLog.push('4');
+                            setTimeout(() => { showStatus("DROPPED FOR FOUR!"); playGameSound('cheer'); }, 500);
+                            setTimeout(() => finishDelivery(true, 4, false), 2500);
+                        } else {
+                            showStatus("DROPPED!"); setCommentary('0');
+                            window.gsap.to(ball.position, {x: catchX + (Math.random()*8-4), z: catchZ + (Math.random()*8-4), y: 0, duration: 0.8});
+                            
+                            let runsGot = Math.random() < 0.5 ? 1 : 2; 
+                            let isRunOutOnDrop = runsGot === 2 && Math.random() < 0.2; 
+                            
+                            if (runsGot === 2 || isRunOutOnDrop) {
+                                strikerMesh.userData.isMoving = true; nonStrikerMesh.userData.isMoving = true;
+                                if (isRunOutOnDrop) {
+                                    let tlS = window.gsap.timeline();
+                                    tlS.to(strikerMesh.position, { z: -8.5, duration: 0.8, ease: 'linear' });
+                                    tlS.to(strikerMesh.position, { z: 8.5, duration: 2.5, ease: 'linear' }); 
+                                    let tlNS = window.gsap.timeline();
+                                    tlNS.to(nonStrikerMesh.position, { z: 8.5, duration: 0.8, ease: 'linear' });
+                                    tlNS.to(nonStrikerMesh.position, { z: -8.5, duration: 2.5, ease: 'linear' });
+                                } else {
+                                    window.gsap.to(strikerMesh.position, { z: 8.5, duration: 1.8, ease: 'linear', onComplete:()=>strikerMesh.userData.isMoving=false });
+                                    window.gsap.to(nonStrikerMesh.position, { z: -8.5, duration: 1.8, ease: 'linear', onComplete:()=>nonStrikerMesh.userData.isMoving=false });
+                                }
                             }
-                        }, 800);
+
+                            setTimeout(() => {
+                                closestF.lookAt(0, 0, 10);
+                                if (isRunOutOnDrop) {
+                                    window.gsap.to(ball.position, { x: 0, z: 10, y: 0.5, duration: 1.2, onComplete: () => { 
+                                        window.gsap.killTweensOf(strikerMesh.position); window.gsap.killTweensOf(nonStrikerMesh.position);
+                                        strikerMesh.userData.isMoving = false; nonStrikerMesh.userData.isMoving = false;
+                                        wickets++; matchBallLog.push('W'); showStatus("RUN OUT!"); setCommentary('RO'); celebrateWicket(); 
+                                        const s = stumpsBatting.children[1]; window.gsap.to(s.position, { z: 15, y: 2, duration: 0.5 }); window.gsap.to(s.rotation, { x: 3, duration: 0.5 });
+                                        score += 1; 
+                                        setTimeout(() => finishDelivery(true, 1, true), 2000);
+                                    }});
+                                } else {
+                                    window.gsap.to(ball.position, { x: 0, z: 13, y: 1, duration: 1.4 }); 
+                                    score += runsGot; matchBallLog.push(runsGot.toString());
+                                    setTimeout(() => finishDelivery(true, runsGot, false), 1600);
+                                }
+                            }, 800);
+                        }
 
                     } else { 
                         wickets++; matchBallLog.push('W'); showStatus("CATCH OUT!"); setCommentary('CAUGHT'); celebrateWicket(); 
@@ -638,21 +677,34 @@
             } 
             else if (shotType === 'DOT') {
                 playGameSound('hit'); setCommentary('0'); 
-                let bdx = bx + (Math.random()-0.5)*0.5;
-                window.gsap.to(ball.position, { z: 13, x: bdx, y: 0.5, duration: 0.5 }); 
-                window.gsap.to(keeper.position, { x: bdx, duration: 0.4, onUpdate: () => keeper.userData.isMoving = true, onComplete: () => {
-                    keeper.userData.isMoving = false;
-                    window.gsap.to(keeper.userData.arms[0].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
-                    window.gsap.to(keeper.userData.arms[1].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
-                    matchBallLog.push('0'); updateScoreboard(); 
-                    
-                    setTimeout(() => {
-                        keeper.lookAt(bowler.position.x, 0, bowler.position.z);
-                        window.gsap.to(keeper.userData.arms[1].rotation, { x: -3.14, duration: 0.2, yoyo: true, repeat: 1 }); 
-                        window.gsap.to(ball.position, { x: bowler.position.x, z: bowler.position.z, y: 1, duration: 1.2, ease: 'power1.out' }); 
-                    }, 500);
-                    setTimeout(() => finishDelivery(true, 0, false), 2000); 
-                }});
+                
+                if (runs === 0 && angleDiff < 0.15) {
+                    closestF.lookAt(destX, 0, destZ);
+                    window.gsap.to(closestF.position, { x: destX, z: destZ, duration: 0.5, onUpdate: () => closestF.userData.isMoving = true, onComplete: () => closestF.userData.isMoving = false });
+                    window.gsap.to(ball.position, { x: destX, z: destZ, y:0, duration: 0.6, onComplete: () => {
+                        matchBallLog.push('0'); updateScoreboard(); 
+                        setTimeout(() => {
+                            window.gsap.to(ball.position, { x: bowler.position.x, z: bowler.position.z, y: 1, duration: 1.0, ease: 'power1.out' }); 
+                        }, 400);
+                        setTimeout(() => finishDelivery(true, 0, false), 1800); 
+                    }});
+                } else {
+                    let bdx = bx + (Math.random()-0.5)*0.5;
+                    window.gsap.to(ball.position, { z: 13, x: bdx, y: 0.5, duration: 0.5 }); 
+                    window.gsap.to(keeper.position, { x: bdx, duration: 0.4, onUpdate: () => keeper.userData.isMoving = true, onComplete: () => {
+                        keeper.userData.isMoving = false;
+                        window.gsap.to(keeper.userData.arms[0].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
+                        window.gsap.to(keeper.userData.arms[1].rotation, { x: -1.5, duration: 0.2, yoyo: true, repeat: 1 });
+                        matchBallLog.push('0'); updateScoreboard(); 
+                        
+                        setTimeout(() => {
+                            keeper.lookAt(bowler.position.x, 0, bowler.position.z);
+                            window.gsap.to(keeper.userData.arms[1].rotation, { x: -3.14, duration: 0.2, yoyo: true, repeat: 1 }); 
+                            window.gsap.to(ball.position, { x: bowler.position.x, z: bowler.position.z, y: 1, duration: 1.2, ease: 'power1.out' }); 
+                        }, 500);
+                        setTimeout(() => finishDelivery(true, 0, false), 2000); 
+                    }});
+                }
             } 
             else if (shotType === 'FOUR') {
                 playGameSound('hit');
@@ -660,9 +712,6 @@
                 
                 closestF.lookAt(ballTargetX, 0, ballTargetZ); 
                 
-                // ==========================================
-                // FIX 2 & 3: DIVING MISS (30% Chance) & Animation
-                // ==========================================
                 if (isDivingMiss) {
                     let r_intercept = r_boundary - 4;
                     let interceptX = Math.sin(angle) * r_intercept;
@@ -672,16 +721,13 @@
                     let diveStartZ = closestF.position.z + (interceptZ - closestF.position.z) * 0.6;
                     
                     let tlFielder = window.gsap.timeline();
-                    // Runs towards the intercept point
                     tlFielder.to(closestF.position, { x: diveStartX, z: diveStartZ, duration: timeToChase * 0.6, ease: 'none', onStart: () => closestF.userData.isMoving = true });
-                    // Superman Dive
                     tlFielder.to(closestF.rotation, { x: -Math.PI/2.2, duration: 0.2 }, "+=0"); 
                     tlFielder.to(closestF.userData.arms[0].rotation, { x: -2.5, duration: 0.2 }, "<");
                     tlFielder.to(closestF.userData.arms[1].rotation, { x: -2.5, duration: 0.2 }, "<");
                     
-                    // Slides above ground, ball escapes!
                     tlFielder.to(closestF.position, { 
-                        x: interceptX, z: interceptZ, y: 0.2, 
+                        x: interceptX, z: interceptZ, y: 0.4, 
                         duration: timeToChase * 0.4, ease: 'power2.out',
                         onComplete: () => {
                             closestF.userData.isMoving = false;
@@ -722,8 +768,7 @@
                 if (!isGreatSave && Math.random() < 0.15) { isRunOut = true; runs = 2; }
 
                 const timeToChase = isGreatSave ? 1.6 : (isRunOut ? 2.0 : (runs >= 2 ? 3.0 : 1.8));
-
-                // 2. FIX: CONSTANT BALL SPEED FOR INTERCEPTION!
+                
                 window.gsap.to(ball.position, { x: ballTargetX, z: ballTargetZ, y: 0.12, duration: timeToChase, ease: isGreatSave ? 'none' : 'power1.out' }); 
                 
                 if (isRunOut) {
@@ -742,18 +787,18 @@
                 closestF.lookAt(ballTargetX, 0, ballTargetZ);
                 let tlFielder = window.gsap.timeline();
                 if (isGreatSave) {
-                    let diveStartX = closestF.position.x + (ballTargetX - closestF.position.x) * 0.6;
-                    let diveStartZ = closestF.position.z + (ballTargetZ - closestF.position.z) * 0.6;
+                    let diveStartX = closestF.position.x + (ballTargetX - closestF.position.x) * 0.7;
+                    let diveStartZ = closestF.position.z + (ballTargetZ - closestF.position.z) * 0.7;
                     
-                    tlFielder.to(closestF.position, { x: diveStartX, z: diveStartZ, duration: timeToChase * 0.6, ease: 'none', onStart: () => closestF.userData.isMoving = true });
-                    tlFielder.to(closestF.rotation, { x: -Math.PI/2.2, duration: 0.15 }, "+=0"); // Superman Dive!
+                    tlFielder.to(closestF.position, { x: diveStartX, z: diveStartZ, duration: timeToChase * 0.7, ease: 'none', onStart: () => closestF.userData.isMoving = true });
+                    tlFielder.to(closestF.rotation, { x: -Math.PI/2.2, duration: 0.15 }, "+=0"); 
                     tlFielder.to(closestF.userData.arms[0].rotation, { x: -2.5, duration: 0.15 }, "<");
                     tlFielder.to(closestF.userData.arms[1].rotation, { x: -2.5, duration: 0.15 }, "<");
 
                     tlFielder.to(closestF.position, { 
-                        x: ballTargetX, z: ballTargetZ, y: 0.2, // Slides smoothly above ground
-                        duration: timeToChase * 0.4, 
-                        ease: 'power1.out',
+                        x: ballTargetX, z: ballTargetZ, y: 0.4, 
+                        duration: timeToChase * 0.3, 
+                        ease: 'power2.out',
                         onComplete: () => {
                             showStatus("GREAT SAVE!"); closestF.userData.isMoving = false;
                             window.gsap.to(closestF.rotation, {x: 0, duration: 0.4, delay: 0.5});
@@ -766,7 +811,6 @@
                     tlFielder.to(closestF.position, { x: ballTargetX, z: ballTargetZ, duration: timeToChase, onUpdate: ()=>closestF.userData.isMoving=true, onComplete: () => { closestF.userData.isMoving = false; closestF.lookAt(0, 0, 10); }});
                 }
 
-                // Check out completion after the ball reaches the target (or is intercepted)
                 setTimeout(() => {
                     if(isRunOut) { 
                         window.gsap.to(ball.position, { x: 0, z: 10, y: 0.5, duration: 0.8, onComplete: () => {
@@ -856,6 +900,9 @@
             fielders.forEach(f => { 
                 window.gsap.to(f.rotation, {x: 0, duration: 0.5});
                 window.gsap.to(f.position, {y: 0, duration: 0.5});
+                window.gsap.to(f.userData.arms[0].rotation, {x: 0, duration: 0.5});
+                window.gsap.to(f.userData.arms[1].rotation, {x: 0, duration: 0.5});
+                
                 f.lookAt(f.userData.origPos.x, 0, f.userData.origPos.z);
                 window.gsap.to(f.position, { x: f.userData.origPos.x, z: f.userData.origPos.z, duration: 1.5, onUpdate: () => f.userData.isMoving = true, onComplete: () => { f.userData.isMoving = false; f.lookAt(0,0,0); } }); 
             });
@@ -871,31 +918,34 @@
         }
 
         function getTeamStatusString(team, groupTeams, pointsData, totalMatches = 3) {
+            let p = pointsData[team];
+            let remMatches = totalMatches - p.P;
+            let maxPossiblePts = p.Pts + (remMatches * 2);
+
             let sorted = [...groupTeams].sort((a,b) => pointsData[b].Pts - pointsData[a].Pts || pointsData[b].NRR - pointsData[a].NRR);
             let rank = sorted.indexOf(team);
-            let p = pointsData[team];
-            let rem = totalMatches - p.P;
-            let maxP = p.Pts + rem * 2;
 
-            if (sorted.length < 4) return ""; 
-
-            let p2 = pointsData[sorted[1]]; 
-            let minP2 = p2.Pts; 
-            
-            let p3 = pointsData[sorted[2]]; 
-            let maxP3 = p3.Pts + (totalMatches - p3.P)*2; 
+            let isQ = false;
+            let isE = false;
 
             if (p.P === totalMatches) {
-                if (rank < 2) return ` <span style="color:#4CAF50; font-size:11px; font-weight:900;">(Q)</span>`;
-                else return ` <span style="color:#ff5555; font-size:11px; font-weight:900;">(E)</span>`;
+                if (rank < 2) isQ = true;
+                else isE = true;
+            } else {
+                let othersMaxPts = groupTeams.filter(t => t !== team).map(t => pointsData[t].Pts + ((totalMatches - pointsData[t].P) * 2)).sort((a,b)=>b-a);
+                let othersCurrentPts = groupTeams.filter(t => t !== team).map(t => pointsData[t].Pts).sort((a,b)=>b-a);
+                
+                if (p.Pts > othersMaxPts[1]) isQ = true;
+                
+                if (maxPossiblePts < othersCurrentPts[1]) isE = true;
             }
 
-            if (rank < 2) {
-                if (p.Pts > maxP3) return ` <span style="color:#4CAF50; font-size:11px; font-weight:900;">(Q)</span>`;
-            } else {
-                if (maxP < minP2) return ` <span style="color:#ff5555; font-size:11px; font-weight:900;">(E)</span>`;
-            }
-            return "";
+            // =====================================
+            // FIX: ALIGNMENT SPAN
+            // =====================================
+            if (isQ) return `<span style="display:inline-block; width:22px; text-align:center; color:#4CAF50; font-size:11px; font-weight:900;">(Q)</span>`;
+            if (isE) return `<span style="display:inline-block; width:22px; text-align:center; color:#ff5555; font-size:11px; font-weight:900;">(E)</span>`;
+            return `<span style="display:inline-block; width:22px;"></span>`;
         }
 
         function processWCResult(winner, t1, t2) {
@@ -968,7 +1018,19 @@
             document.querySelectorAll('.team-btn').forEach(b => { b.onclick = () => { if(step === 'PLAYER') { playerTeam = b.dataset.team; if(gameMode === 'QUICK') renderTeamSelect('OPPONENT'); else if(gameMode === 'WC') { initWorldCup(); renderWCHub(); } else if(gameMode === 'TOURNAMENT') { initKnockout(); renderWCHub(); } } else { opponentTeam = b.dataset.team; processTossAndStart(playerTeam, opponentTeam, {phase: 'QUICK MATCH', id: 0}); } }; });
         }
 
-        function initWorldCup() { wc.active = true; wc.phase = 'GROUP'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.currentTab = 'A'; wc.isKnockoutOnly = false; initPlayerStats(); let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam); wc.groups = { A: pool.slice(0,4), B: pool.slice(4,8), C: pool.slice(8,12), D: pool.slice(12,16) }; TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; }); let mId = 0; let matchups = [[0,1], [2,3], [0,2], [1,3], [0,3], [1,2]]; let groupOrder = ['A', 'B', 'C', 'D']; for (let round = 0; round < 6; round++) { for (let g of groupOrder) { let tg = wc.groups[g]; let pair = matchups[round]; wc.matches.push({ id: mId++, phase: 'GROUP', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); } } saveWC(); }
+        function initWorldCup() { 
+            wc.active = true; wc.phase = 'GROUP'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.isKnockoutOnly = false; initPlayerStats(); 
+            // FIX: Purely Random Teams
+            let pool = [...TEAMS].sort(() => Math.random() - 0.5); 
+            wc.groups = { A: pool.slice(0,4), B: pool.slice(4,8), C: pool.slice(8,12), D: pool.slice(12,16) }; 
+            TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; }); 
+            
+            // Auto Select Player's Group Tab
+            for (let g in wc.groups) { if (wc.groups[g].includes(playerTeam)) wc.currentTab = g; }
+
+            let mId = 0; let matchups = [[0,1], [2,3], [0,2], [1,3], [0,3], [1,2]]; let groupOrder = ['A', 'B', 'C', 'D']; 
+            for (let round = 0; round < 6; round++) { for (let g of groupOrder) { let tg = wc.groups[g]; let pair = matchups[round]; wc.matches.push({ id: mId++, phase: 'GROUP', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); } } saveWC(); 
+        }
         function initKnockout() { wc.active = true; wc.phase = 'ROUND OF 16'; wc.playerTeam = playerTeam; wc.matches = []; wc.points = {}; wc.isKnockoutOnly = true; initPlayerStats(); let pool = TEAMS.filter(t => t !== playerTeam).sort(() => Math.random() - 0.5); pool.unshift(playerTeam); TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; }); let mId = 0; for(let i=0; i<8; i++) { wc.matches.push({ id: mId++, phase: 'ROUND OF 16', group: `M${i+1}`, t1: pool[i*2], t2: pool[i*2+1], status: 'PENDING', winner: null, res: "" }); } saveWC(); }
 
         function simMatch(mIdx) {
@@ -984,7 +1046,21 @@
 
         function checkPhaseComplete() { let pending = wc.matches.filter(m => m.phase === wc.phase && m.status === 'PENDING'); if (pending.length === 0) advancePhase(); }
         function advancePhase() { let currentMatches = wc.matches.filter(m => m.phase === wc.phase); let mId = wc.matches.length;
-            if (wc.isKnockoutOnly) { if(wc.phase === 'ROUND OF 16') { wc.phase = 'QUARTER FINAL'; for(let i=0; i<4; i++) wc.matches.push({ id: mId++, phase: 'QUARTER FINAL', group: `QF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'QUARTER FINAL') { wc.phase = 'SEMI FINAL'; for(let i=0; i<2; i++) wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: `SF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'FINAL') wc.phase = 'FINISHED'; } else { if (wc.phase === 'GROUP') { wc.phase = 'SUPER8'; let qualifiers = []; for(let g in wc.groups) { let sorted = wc.groups[g].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); qualifiers.push(sorted[0], sorted[1]); } wc.super8 = { G1: [qualifiers[0], qualifiers[3], qualifiers[4], qualifiers[7]], G2: [qualifiers[1], qualifiers[2], qualifiers[5], qualifiers[6]] }; wc.currentTab = 'G1'; for(let g in wc.super8) { let tg = wc.super8[g]; let matchups = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]]; matchups.forEach(pair => { wc.matches.push({ id: mId++, phase: 'SUPER8', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); }); } } else if (wc.phase === 'SUPER8') { wc.phase = 'SEMI FINAL'; let s1 = wc.super8.G1.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); let s2 = wc.super8.G2.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF1', t1: s1[0], t2: s2[1], status: 'PENDING', winner: null, res: "" }); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF2', t1: s2[0], t2: s1[1], status: 'PENDING', winner: null, res: "" }); } else if (wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } else if (wc.phase === 'FINAL') { wc.phase = 'FINISHED'; } } saveWC(); renderWCHub(); }
+            if (wc.isKnockoutOnly) { if(wc.phase === 'ROUND OF 16') { wc.phase = 'QUARTER FINAL'; for(let i=0; i<4; i++) wc.matches.push({ id: mId++, phase: 'QUARTER FINAL', group: `QF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'QUARTER FINAL') { wc.phase = 'SEMI FINAL'; for(let i=0; i<2; i++) wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: `SF${i+1}`, t1: currentMatches[i*2].winner, t2: currentMatches[i*2+1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } else if(wc.phase === 'FINAL') wc.phase = 'FINISHED'; } else { 
+                
+                // RESET POINTS FOR SUPER 8
+                if (wc.phase === 'GROUP') { 
+                    wc.phase = 'SUPER8'; let qualifiers = []; 
+                    for(let g in wc.groups) { let sorted = wc.groups[g].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); qualifiers.push(sorted[0], sorted[1]); } 
+                    
+                    // Reset all teams' points to zero for Super 8
+                    TEAMS.forEach(t => { wc.points[t] = { P:0, W:0, L:0, T:0, Pts:0, RS:0, OF:0, RC:0, OB:0, NRR:0 }; });
+
+                    wc.super8 = { G1: [qualifiers[0], qualifiers[3], qualifiers[4], qualifiers[7]], G2: [qualifiers[1], qualifiers[2], qualifiers[5], qualifiers[6]] }; 
+                    wc.currentTab = wc.super8.G1.includes(wc.playerTeam) ? 'G1' : (wc.super8.G2.includes(wc.playerTeam) ? 'G2' : 'G1'); 
+                    
+                    for(let g in wc.super8) { let tg = wc.super8[g]; let matchups = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]]; matchups.forEach(pair => { wc.matches.push({ id: mId++, phase: 'SUPER8', group: g, t1: tg[pair[0]], t2: tg[pair[1]], status: 'PENDING', winner: null, res: "" }); }); } 
+                } else if (wc.phase === 'SUPER8') { wc.phase = 'SEMI FINAL'; let s1 = wc.super8.G1.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); let s2 = wc.super8.G2.sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF1', t1: s1[0], t2: s2[1], status: 'PENDING', winner: null, res: "" }); wc.matches.push({ id: mId++, phase: 'SEMI FINAL', group: 'SF2', t1: s2[0], t2: s1[1], status: 'PENDING', winner: null, res: "" }); } else if (wc.phase === 'SEMI FINAL') { wc.phase = 'FINAL'; wc.matches.push({ id: mId++, phase: 'FINAL', group: 'FINAL', t1: currentMatches[0].winner, t2: currentMatches[1].winner, status: 'PENDING', winner: null, res: "" }); } else if (wc.phase === 'FINAL') { wc.phase = 'FINISHED'; } } saveWC(); renderWCHub(); }
 
         window.setTab = function(tab) { wc.currentTab = tab; renderWCHub(); }
         window.showStatsHub = function() {
@@ -1013,18 +1089,24 @@
                 let tabs = wc.phase === 'GROUP' ? ['A','B','C','D'] : ['G1','G2']; 
                 if(!tabs.includes(wc.currentTab)) wc.currentTab = tabs[0]; 
                 tabs.forEach(t => { html += `<button class="tab-btn ${wc.currentTab===t?'active':''}" onclick="setTab('${t}')">Grp ${t}</button>`; }); 
-                html += `</div><table class="pts-table"><tr><th>Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th></tr>`; 
+                
+                // Perfect Table Alignment with fixed-width column
+                html += `</div><table class="pts-table"><tr><th style="text-align:left; padding-left:5px;">Team</th><th>P</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th></tr>`; 
                 let teamsInTab = wc.phase === 'GROUP' ? wc.groups[wc.currentTab] : wc.super8[wc.currentTab]; 
                 let sorted = [...teamsInTab].sort((a,b) => wc.points[b].Pts - wc.points[a].Pts || wc.points[b].NRR - wc.points[a].NRR); 
                 
                 sorted.forEach(t => { 
                     let p = wc.points[t]; 
-                    let highlight = (p.Pts > 0 || t === wc.playerTeam) ? (t===wc.playerTeam ? 'style="color:gold"' : '') : ''; 
+                    let isPlayer = (t === wc.playerTeam);
+                    let highlight = isPlayer ? 'style="background: rgba(255, 215, 0, 0.2);"' : ''; 
                     let nrrDisp = p.NRR > 0 ? `+${p.NRR.toFixed(2)}` : p.NRR.toFixed(2); 
                     
                     let qeStatus = getTeamStatusString(t, teamsInTab, wc.points, wc.phase === 'GROUP' ? 3 : 3);
+                    let teamNameStr = `<span style="display:inline-block; width:22px; text-align:center;">${qeStatus}</span>`;
+                    teamNameStr += `<b style="${isPlayer ? 'color:gold; font-size:14px;' : ''}">${t.substring(0,3).toUpperCase()}</b>`;
+                    if (isPlayer) teamNameStr += ` <span style="font-size:11px;">👤</span>`;
 
-                    html += `<tr ${highlight}><td><b>${t.substring(0,3).toUpperCase()}</b>${qeStatus}</td><td>${p.P}</td><td>${p.W}</td><td>${p.L}</td><td><b>${p.Pts}</b></td><td>${nrrDisp}</td></tr>`; 
+                    html += `<tr ${highlight}><td style="text-align:left; white-space:nowrap; padding: 6px 0;">${teamNameStr}</td><td>${p.P}</td><td>${p.W}</td><td>${p.L}</td><td><b>${p.Pts}</b></td><td>${nrrDisp}</td></tr>`; 
                 }); html += `</table></div>`; 
             } else { html += `<div class="wc-panel" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;"><h3>KNOCKOUT STAGE</h3><div style="font-size:40px">⚔️</div></div>`; }
             html += `</div><div style="display:flex; gap:10px;"><button class="menu-btn" style="margin-top:15px; background:#1976D2; flex:1;" onclick="showStatsHub()">📊 TOURNAMENT STATS</button><button class="menu-btn" style="margin-top:15px; background:#444; flex:1;" onclick="location.reload()">SAVE & EXIT</button></div></div>`; mc.innerHTML = html;
